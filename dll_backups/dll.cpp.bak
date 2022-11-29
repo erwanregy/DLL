@@ -1,0 +1,298 @@
+#include "dll.hpp"
+#include <algorithm>
+
+using std::copy;
+
+void DLL::send(uint8_t* packet_ptr, uint8_t packet_length, uint8_t dest_addr) {
+    uint8_t num_split_packets = packet_length/8;
+    for (uint8_t split_packet_num = 0; split_packet_num <= num_split_packets; split_packet_num++) {
+        uint8_t split_packet_length;
+        if (split_packet_num == num_split_packets) {
+            split_packet_length = packet_length - num_split_packets*8;
+        } else {
+            split_packet_length = 8;
+        }
+        sending_frame.control[0] = split_packet_num;
+        sending_frame.control[1] = num_split_packets;
+        sending_frame.addressing[0] = MAC_ADDR;
+        sending_frame.addressing[1] = dest_addr;
+        sending_frame.length = split_packet_length;
+        sending_frame.net_packet = new uint8_t[split_packet_length];
+        for (uint8_t i = 0; i < split_packet_length; i++) {
+            sending_frame.net_packet[i] = packet_ptr[split_packet_num*8 + i]; 
+        }
+        calc_crc(sending_frame);
+        print_frame(sending_frame);
+        byte_stuff();
+        // PHY.send(sending_frame_ptr, sending_frame_length);
+    }
+}
+
+bool DLL::receive(uint8_t* frame_ptr, uint8_t frame_length) {
+    received_frame_ptr = frame_ptr;
+    received_frame_length = frame_length;
+    de_byte_stuff();
+    print_frame(received_frame);
+
+    // error = check_crc(received_frame);
+    // if (error) {
+    //     if (received_frame.control[1] != 0) {
+
+    //     }
+    //     return 1;
+    // }
+
+    // if (received_frame.control[1] != 0) {
+    //     if (error) {
+    //         if (received_frame.control[0] == received_frame.control[1]) {
+    //             error = false;
+    //         }
+    //         return 1;
+    //     }
+    // }
+    // if (received_frame.control[0] <= received_frame.control[1]) {
+
+    // }
+
+    /* // Detect split packets
+    if (received_frame.control[1] == 1) {
+        uint8_t reconstructed_packet[8*8]; // 8 lots of 8 bytes, 8 split packets
+        uint8_t split_packet_num = 0;
+        while (received_frame.length & 1 == 1) {
+            for (uint8_t i = 0; i < received_frame.length; i++) {
+                reconstructed_packet[split_packet_num*8 + i] = received_frame.net_packet[i];
+            }
+            split_packet_num++;
+            // receive next packet, but how? nested function call?
+        }
+        for (uint8_t i = 0; i < received_frame.length; i++) {
+            reconstructed_packet[split_packet_num*8 + i] = received_frame.net_packet[i];
+        }
+        // NET.receive(reconstructed_packet, split_packet_num*8 + received_frame.length, received_frame.addressing[0]);
+    } else {
+        // NET.receive(received_frame.net_packet, received_frame.length, received_frame.addressing[0]);
+    } */
+    
+    return 0;
+}
+
+void calc_crc(Frame& frame) {
+    uint8_t data_length = 2 + 2 + 1 + frame.length;
+    uint8_t data[data_length];
+    data[0] = frame.control[0];
+    data[1] = frame.control[1];
+    data[2] = frame.addressing[0];
+    data[3] = frame.addressing[1];
+    data[4] = frame.length;
+    for (uint8_t i = 0; i < frame.length; i++) {
+        data[5 + i] = frame.net_packet[i];
+    }
+
+    #define POLYNOMIAL 0x8005
+    #define WIDTH  (8 * sizeof(uint16_t))
+    #define TOPBIT (1 << (WIDTH - 1))
+
+    uint16_t remainder = 0;	
+    // Perform modulo-2 division, a byte at a time
+    for (uint8_t byte = 0; byte < data_length; byte++) {
+        // Bring the next byte into the remainder
+        remainder ^= (data[byte] << (WIDTH - 8));
+
+        // Perform modulo-2 division, a bit at a time
+        for (uint8_t bit = 8; bit > 0; bit--) {
+            // Try to divide the current data bit
+            if (remainder & TOPBIT) {
+                remainder = (remainder << 1) ^ POLYNOMIAL;
+            } else {
+                remainder = (remainder << 1);
+            }
+        }
+    }
+
+    // The final remainder is the CRC result
+    frame.checksum[0] = (remainder & 0xFF00) >> 8;
+    frame.checksum[1] = (remainder & 0x00FF);
+}
+
+bool check_crc(Frame frame) {
+    return 0;
+}
+
+void DLL::byte_stuff() {
+    uint8_t payload_length = 2 + 2 + 1 + sending_frame.length + 2;
+    uint8_t* payload = new uint8_t[payload_length];
+    payload[0] = sending_frame.control[0];
+    payload[1] = sending_frame.control[1];
+    payload[2] = sending_frame.addressing[0];
+    payload[3] = sending_frame.addressing[1];
+    payload[4] = sending_frame.length;
+    for (uint8_t i = 0; i < sending_frame.length; i++) {
+        payload[5 + i] = sending_frame.net_packet[i];
+    }
+    payload[payload_length - 2] = sending_frame.checksum[0];
+    payload[payload_length - 1] = sending_frame.checksum[1];
+
+    for (uint8_t i = 0; i < payload_length; i++) {
+        // Detect FLAG or ESC
+        if (payload[i] == FLAG or payload[i] == ESC) {
+            // Increment length of payload
+            payload_length++;
+            uint8_t temp[payload_length];
+            copy(payload, payload + payload_length, temp);
+            payload = new uint8_t[payload_length];
+            // Copy unmodified bytes
+            copy(temp, temp + i, payload);
+            // Insert ESC
+            payload[i] = ESC;
+            // Shift bytes right
+            copy(temp + i, temp + payload_length, payload + i + 1);
+            // XOR escaped byte
+            payload[i + 1] ^= 0x20;
+            // Skip escaped (next) byte
+            i++;
+        }
+    }
+
+    sending_frame_length = 1 + payload_length + 1;
+    sending_frame_ptr = new uint8_t[payload_length];
+    sending_frame_ptr[0] = FLAG;
+    copy(payload, payload + payload_length, sending_frame_ptr + 1);
+    sending_frame_ptr[1 + payload_length] = FLAG;
+}
+
+void DLL::de_byte_stuff() {
+    uint8_t* payload_ptr = received_frame_ptr + 1;
+    uint8_t payload_length = received_frame_length - 2;
+    uint8_t* payload = new uint8_t[payload_length];
+    copy(payload_ptr, payload_ptr + payload_length, payload);
+    
+    for (uint8_t i = 0; i < payload_length; i++) {
+        if (payload[i] == ESC) {
+            uint8_t temp[payload_length];
+            copy(payload, payload + payload_length, temp);
+            // Decrement payload length
+            payload_length--;
+            payload = new uint8_t[payload_length];
+            // Copy unmodified bytes
+            copy(temp, temp + i, payload);
+            // Shift bytes left
+            copy(temp + i + 1, temp + payload_length + 1, payload + i);
+            // XOR unescaped byte
+            payload[i] ^= 0x20;
+        }
+    }
+
+    received_frame.control[0] = payload[0];
+    received_frame.control[1] = payload[1];
+    received_frame.addressing[0] = payload[2];
+    received_frame.addressing[1] = payload[3];
+    received_frame.length = payload[4];
+    received_frame.net_packet = new uint8_t[payload[4]];
+    for (uint8_t i = 0; i < payload[4]; i++) {
+        received_frame.net_packet[i] = payload[5 + i];
+    }
+    received_frame.checksum[0] = payload[payload_length - 2];
+    received_frame.checksum[1] = payload[payload_length - 1];
+}
+
+DLL::DLL() {}
+
+DLL::~DLL() {
+    // delete[] sending_frame.net_packet;
+    // delete[] sending_frame_ptr;
+    // delete[] received_frame.net_packet;
+    // delete[] received_frame_ptr;
+}
+
+#ifdef DEBUG
+
+    #include <iostream>
+    #include <sstream>
+
+    using std::cout, std::hex, std::ostringstream;
+
+    /*
+    +--------+-----------+------------+--------+---------------------+------------+--------+
+    | Header |  Control  | Addressing | Length |      NET Packet     |  Checksum  | Footer |
+    +--------+-----------+------------+--------+---------------------+------------+--------+
+    |  0x7d  | 0x7d 0x7e | 0x7d  0x7e |  0x04  | 0x7d 0x7e 0x7d 0x7e | 0x7d  0x7e |  0x7d  |
+    +--------+-----------+------------+--------+---------------------+------------+--------+
+    */
+
+    uint8_t max(uint8_t a, uint8_t b) {
+        if (a > b) {
+            return a;
+        } else {
+            return b;
+        }
+    }
+
+    void print_frame(Frame frame) {
+        uint8_t num_dashes = max(12, 1 + frame.length*5);
+        uint8_t num_spaces = num_dashes - 10;
+        uint8_t extra_space = num_dashes % 2;
+        cout << "+--------+-----------+------------+--------+";
+        for (uint8_t i = 0; i < num_dashes; i++) {
+            cout << "-";
+        }
+        cout << "+------------+--------+\n";
+        cout << "| Header |  Control  | Addressing | Length |";
+        for (uint8_t i = 0; i < num_spaces/2 + extra_space; i++) {
+            cout << " ";
+        }
+        cout << "NET Packet";
+        for (uint8_t i = 0; i < num_spaces/2; i++) {
+            cout << " ";
+        }
+        cout << "|  Checksum  | Footer |\n";
+        cout << "+--------+-----------+------------+--------+";
+        for (uint8_t i = 0; i < num_dashes; i++) {
+            cout << "-";
+        }
+        cout << "+------------+--------+\n";
+        cout << "|  " << byte(frame.header) << "  | " << byte(frame.control[0]) << " " << byte(frame.control[1]) << " | "
+        << byte(frame.addressing[0]) << "  " << byte(frame.addressing[1]) << " |  " << byte(frame.length) << "  | ";
+        if (frame.length == 1) {
+            cout << "   " << byte(frame.net_packet[0]) << "    ";
+        } else if (frame.length == 2) {
+            cout << byte(frame.net_packet[0]) << "  " << byte(frame.net_packet[1]) << " ";
+        } else {
+            for (uint8_t i = 0; i < frame.length; i++) {
+                cout << byte(frame.net_packet[i]) << " ";
+            }
+        }
+        cout << "| " << byte(frame.checksum[0]) << "  " << byte(frame.checksum[1]) << " |  " << byte(frame.footer) << "  |\n";
+        cout << "+--------+-----------+------------+--------+";
+        for (uint8_t i = 0; i < num_dashes; i++) {
+            cout << "-";
+        }
+        cout << "+------------+--------+\n";
+    }
+
+    /*
+    +--------+---------------------+---------------------+--------+-----------------------------------------+---------------------+--------+
+    | Header |       Control       |      Addressing     | Length |                NET Packet               |       Checksum      | Footer |
+    +--------+---------------------+---------------------+--------+-----------------------------------------+---------------------+--------+
+    |  0x7d  | 0x7e 0x5d 0x7e 0x5e | 0x7e 0x5d 0x7e 0x5e |  0x04  | 0x7e 0x5d 0x7e 0x5e 0x7e 0x5d 0x7e 0x5e | 0x7e 0x5d 0x7e 0x5e |  0x7d  |
+    +--------+---------------------+---------------------+--------+-----------------------------------------+---------------------+--------+
+    */
+
+    void print_frame(uint8_t* frame_ptr, uint8_t frame_length) {
+        for (uint8_t i = 0; i < frame_length; i++) {
+            cout << byte(frame_ptr[i]) << " ";
+        }
+        cout << "\n";
+    }
+
+    string byte(uint8_t byte) {
+        ostringstream oss;
+        if (byte <= 0xf) {
+            oss << "0x0";
+        } else {
+            oss << "0x";
+        }
+        oss << hex << (uint16_t) byte;
+        return oss.str();
+    }
+
+#endif

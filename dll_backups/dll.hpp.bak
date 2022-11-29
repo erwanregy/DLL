@@ -1,0 +1,57 @@
+#pragma once
+#include <cstdint>
+
+#define FLAG 0x7D
+#define ESC  0x7E
+#define MAC_ADDR 0
+
+#define DEBUG 1
+
+struct Frame {
+    uint8_t header = FLAG;
+    uint8_t control[2];
+    uint8_t addressing[2];
+    uint8_t length;
+    uint8_t* net_packet;
+    uint8_t checksum[2];
+    uint8_t footer = FLAG;
+};
+
+void calc_crc(Frame& frame);
+bool check_crc(Frame frame);
+
+class DLL {
+  public:
+    DLL();
+    ~DLL();
+// Sending
+//   private:
+    Frame sending_frame;
+    uint8_t* sending_frame_ptr;
+    uint8_t sending_frame_length;
+    void byte_stuff();
+  public:
+    void send(uint8_t* packet_ptr, uint8_t packet_length, uint8_t dest_addr);
+// Receiving
+//   private:
+    Frame received_frame;
+    uint8_t* received_frame_ptr;
+    uint8_t received_frame_length;
+    uint8_t* reconstructed_packet;
+    bool error;
+    void de_byte_stuff();
+  public:
+    bool receive(uint8_t* frame_ptr, uint8_t frame_length);
+};
+
+#ifdef DEBUG
+
+#include <string>
+
+using std::string;
+
+string byte(uint8_t byte);
+void print_frame(Frame frame);
+void print_frame(uint8_t* frame_ptr, uint8_t frame_length);
+
+#endif
