@@ -4,6 +4,7 @@
 
 static uint16_t mem_use;
 
+bool mem_leak();
 void print_mem_use();
 
 void allocate(uint8_t*& ptr, uint8_t& ptr_length, uint8_t new_length);

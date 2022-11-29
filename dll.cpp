@@ -1,11 +1,10 @@
 #include "dll.hpp"
-#include "mem.hpp"
 #include <string.h>
-#include "debug.hpp"
+#include "mem.hpp"
 
-// #define allocate(x, ...) put_str(#x); put_str(": "); allocate(x, ##__VA_ARGS__)
-// #define reallocate(x, ...) put_str(#x); put_str(": "); reallocate(x,##__VA_ARGS__)
-// #define deallocate(x, ...) put_str(#x); put_str(": "); deallocate(x, ##__VA_ARGS__)
+#define allocate(x, ...) put_str(#x); put_str(": "); allocate(x, ##__VA_ARGS__)
+#define reallocate(x, ...) put_str(#x); put_str(": "); reallocate(x,##__VA_ARGS__)
+#define deallocate(x, ...) put_str(#x); put_str(": "); deallocate(x, ##__VA_ARGS__)
 
 void DLL::send(uint8_t* packet_ptr, uint8_t packet_length, uint8_t dest_addr) {
     if (packet_length == 0) {

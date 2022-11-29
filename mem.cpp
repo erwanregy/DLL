@@ -1,6 +1,14 @@
 #include "mem.hpp"
 #include <stdlib.h>
-#include "debug.hpp"
+#include "config.hpp"
+
+bool mem_leak() {
+    if (mem_use != 0) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
 
 void mem_test() {
     #define NUM_PTRS 24
@@ -102,7 +110,7 @@ void reallocate(uint8_t*& ptr, uint8_t& ptr_length, uint8_t new_length) {
         put_str("Reallocated from "); put_uint8(sizeof(*ptr) * ptr_length); put_str(" to "); put_uint8(sizeof(*ptr) * new_length); put_str(" bytes (");
         if (num_bytes & (1 << 7)) {
             put_str("-");
-            num_bytes -= (1 << 7);
+            num_bytes = sizeof(*ptr) * (ptr_length - new_length);
         } else {
             put_str("+");
         }
@@ -126,7 +134,7 @@ void reallocate(Buffer*& ptr, uint8_t& ptr_length, uint8_t new_length) {
         put_str("Reallocated from "); put_uint8(sizeof(*ptr) * ptr_length); put_str(" to "); put_uint8(sizeof(*ptr) * new_length); put_str(" bytes (");
         if (num_bytes & (1 << 7)) {
             put_str("-");
-            num_bytes -= (1 << 7);
+            num_bytes = sizeof(*ptr) * (ptr_length - new_length);
         } else {
             put_str("+");
         }

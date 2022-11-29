@@ -11,7 +11,6 @@
                 "${workspaceFolder}/main.cpp",
                 "${workspaceFolder}/dll.cpp",
                 "${workspaceFolder}/mem.cpp",
-                "${workspaceFolder}/dll_test.cpp",
                 "-o",
                 "${workspaceFolder}/dll.exe"
             ],

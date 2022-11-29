@@ -1,6 +1,6 @@
 #pragma once
 #include <stdint.h>
-#include "debug.hpp"
+#include "config.hpp"
 
 #define FLAG     0x7D
 #define ESC      0x7E
