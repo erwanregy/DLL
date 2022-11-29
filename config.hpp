@@ -1,7 +1,8 @@
 #pragma once
 
 #define DEBUG
-#define DEBUG_MEM
+// #define DEBUG_MEM
+// #define SILENCE
 
 #ifdef SILENCE
     #define put_str(str, ...) (0)

@@ -2,9 +2,9 @@
 #include <string.h>
 #include "mem.hpp"
 
-#define allocate(x, ...) put_str(#x); put_str(": "); allocate(x, ##__VA_ARGS__)
-#define reallocate(x, ...) put_str(#x); put_str(": "); reallocate(x,##__VA_ARGS__)
-#define deallocate(x, ...) put_str(#x); put_str(": "); deallocate(x, ##__VA_ARGS__)
+// #define allocate(x, ...) put_str(#x); put_str(": "); allocate(x, ##__VA_ARGS__)
+// #define reallocate(x, ...) put_str(#x); put_str(": "); reallocate(x,##__VA_ARGS__)
+// #define deallocate(x, ...) put_str(#x); put_str(": "); deallocate(x, ##__VA_ARGS__)
 
 void DLL::send(uint8_t* packet_ptr, uint8_t packet_length, uint8_t dest_addr) {
     if (packet_length == 0) {
@@ -14,7 +14,7 @@ void DLL::send(uint8_t* packet_ptr, uint8_t packet_length, uint8_t dest_addr) {
     bool remainder_packet = packet_length % MAX_PACKET_LENGTH;
     uint8_t num_split_packets = packet_length/MAX_PACKET_LENGTH + remainder_packet;
     #ifdef DEBUG
-        allocate(sent_frames, num_sent_frames, num_split_packets);
+        allocate(sent_frames, sent_frame_lens, num_sent_frames, num_split_packets);
     #endif
     for (uint8_t split_packet_num = 0; split_packet_num < num_split_packets; split_packet_num++) {
         uint8_t split_packet_length;
@@ -32,29 +32,29 @@ void DLL::send(uint8_t* packet_ptr, uint8_t packet_length, uint8_t dest_addr) {
             frame.net_packet[i] = packet_ptr[split_packet_num * MAX_PACKET_LENGTH + i]; 
         }
         calc_crc();
-        stuffed_frame = byte_stuff(frame); // allocates memory
-        // PHY.send(stuffed_frame.ptr, stuffed_frame.length);
+        byte_stuff(); // allocates memory
+        // PHY.send(stuffed_frame, stuffed_frame_len);
         #ifdef DEBUG
             // print(frame);
             // put_str("Stuffed frame: "); print(stuffed_frame);
-            allocate(sent_frames[split_packet_num].ptr, sent_frames[split_packet_num].length, stuffed_frame.length);
-            memcpy(sent_frames[split_packet_num].ptr, stuffed_frame.ptr, stuffed_frame.length);
+            allocate(sent_frames[split_packet_num], sent_frame_lens[split_packet_num], stuffed_frame_len);
+            memcpy(sent_frames[split_packet_num], stuffed_frame, stuffed_frame_len);
         #endif
         deallocate(frame.net_packet, frame.length);
-        deallocate(stuffed_frame);
+        deallocate(stuffed_frame, stuffed_frame_len);
     }
 }
 
-bool DLL::receive(uint8_t* frame_ptr, uint8_t frame_length) {
-    allocate(stuffed_frame, frame_length);
-    memcpy(stuffed_frame.ptr, frame_ptr, stuffed_frame.length);
+bool DLL::receive(uint8_t* frame_ptr, uint8_t frame_len) {
+    allocate(stuffed_frame, stuffed_frame_len, frame_len);
+    memcpy(stuffed_frame, frame_ptr, stuffed_frame_len);
 
-    frame = de_byte_stuff(stuffed_frame);
+    de_byte_stuff(); // allocates memory
     #ifdef DEBUG
         // put_str("Stuffed frame: "); print(stuffed_frame);
         // print(frame);
     #endif
-    deallocate(stuffed_frame);
+    deallocate(stuffed_frame, stuffed_frame_len);
 
     // Check that destination MAC address in frame matches local MAC address or is in broadcast mode
     if (frame.addressing[1] != MAC_ADDR and frame.addressing[1] != 0xFF) {
@@ -86,32 +86,32 @@ bool DLL::receive(uint8_t* frame_ptr, uint8_t frame_length) {
     if (frame.control[1] == 0) {
         #ifdef DEBUG
             // put_str("Packet: "); print(frame.net_packet, frame.length);
-            allocate(received_packet, frame.length);
-            memcpy(received_packet.ptr, frame.net_packet, received_packet.length);
+            allocate(received_packet, received_packet_len, frame.length);
+            memcpy(received_packet, frame.net_packet, received_packet_len);
         #endif
         // NET.receive(frame.net_packet, frame.length, frame.addressing[0]);
     // Split packet
     } else {
         // First split packet
         if (frame.control[0] == 0) {
-            allocate(reconstructed_packet, frame.length);
-            memcpy(reconstructed_packet.ptr, frame.net_packet, reconstructed_packet.length);
+            allocate(reconstructed_packet, reconstructed_packet_len, frame.length);
+            memcpy(reconstructed_packet, frame.net_packet, reconstructed_packet_len);
         // Nth split packet
         } else {
             // Increment reconstructed packet length
-            reallocate(reconstructed_packet, reconstructed_packet.length + frame.length);
+            reallocate(reconstructed_packet, reconstructed_packet_len, reconstructed_packet_len + frame.length);
             // Append new split packet onto reconstructed packet
-            memcpy(&reconstructed_packet.ptr[reconstructed_packet.length - frame.length], frame.net_packet, frame.length);
+            memcpy(&reconstructed_packet[reconstructed_packet_len - frame.length], frame.net_packet, frame.length);
             // Last split packet
             if (frame.control[0] == frame.control[1]) {
-                // NET.receive(reconstructed_packet.ptr, reconstructed_packet.length, frame.addressing[0]);
+                // NET.receive(reconstructed_packet, reconstructed_packet_len, frame.addressing[0]);
                 #ifdef DEBUG
                     // put_str("Packet: "); print(reconstructed_packet);
-                    allocate(received_packet, reconstructed_packet.length);
-                    memcpy(received_packet.ptr, reconstructed_packet.ptr, reconstructed_packet.length);
+                    allocate(received_packet, received_packet_len, reconstructed_packet_len);
+                    memcpy(received_packet, reconstructed_packet, reconstructed_packet_len);
                 #endif
                 // Free memory
-                deallocate(reconstructed_packet);
+                deallocate(reconstructed_packet, reconstructed_packet_len);
             }
         }
     }
@@ -120,7 +120,7 @@ bool DLL::receive(uint8_t* frame_ptr, uint8_t frame_length) {
     return 0;
 }
 
-Buffer byte_stuff(Frame frame) {
+void DLL::byte_stuff() {
     uint8_t message_length;
     uint8_t* message = NULL;
     allocate(message, message_length, 2 + 2 + 1 + frame.length + 2);
@@ -151,21 +151,19 @@ Buffer byte_stuff(Frame frame) {
         }
     }
 
-    Buffer stuffed_frame;
-    allocate(stuffed_frame, 1 + message_length + 1);
-    stuffed_frame.ptr[0] = FLAG;
-    memcpy(&stuffed_frame.ptr[1], message, message_length);
-    stuffed_frame.ptr[stuffed_frame.length - 1] = FLAG;
+    allocate(stuffed_frame, stuffed_frame_len, 1 + message_length + 1);
+    stuffed_frame[0] = FLAG;
+    memcpy(&stuffed_frame[1], message, message_length);
+    stuffed_frame[stuffed_frame_len - 1] = FLAG;
 
     deallocate(message, message_length);
-    return stuffed_frame;
 }
 
-Frame de_byte_stuff(Buffer stuffed_frame) {
+void DLL::de_byte_stuff() {
     uint8_t message_length;
     uint8_t* message = NULL;
-    allocate(message, message_length, stuffed_frame.length - 2);
-    memcpy(message, &stuffed_frame.ptr[1], message_length);
+    allocate(message, message_length, stuffed_frame_len - 2);
+    memcpy(message, &stuffed_frame[1], message_length);
     
     for (uint8_t i = 0; i < message_length; i++) {
         if (message[i] == ESC) {
@@ -178,7 +176,6 @@ Frame de_byte_stuff(Buffer stuffed_frame) {
         }
     }
 
-    Frame frame;
     frame.control[0] = message[0];
     frame.control[1] = message[1];
     frame.addressing[0] = message[2];
@@ -189,7 +186,6 @@ Frame de_byte_stuff(Buffer stuffed_frame) {
     frame.checksum[1] = message[message_length - 1];
 
     deallocate(message, message_length);
-    return frame;
 }
 
 void DLL::calc_crc() {
@@ -260,16 +256,17 @@ Frame::Frame() {
     footer = FLAG;
 }
 
-Buffer::Buffer() {
-    ptr = NULL;
-    length = 0;
-}
-
 DLL::DLL() {
+    stuffed_frame = NULL;
+    stuffed_frame_len = 0;
+    reconstructed_packet = NULL;
+    reconstructed_packet_len = 0;
     #ifdef DEBUG
-        Buffer sent_frame;
-        sent_frames = &sent_frame;
+        sent_frames = NULL;
+        sent_frame_lens = NULL;
         num_sent_frames = 0;
+        received_packet = NULL;
+        received_packet_len = 0;
     #endif
     error = false;
 }
@@ -365,21 +362,6 @@ DLL::DLL() {
             put_str("+");
         }
         put_str("------------+--------+\r\n");
-    }
-
-    void print(Buffer buffer) {
-        /*
-        +--------+---------------------+---------------------+--------+-----------------------------------------+---------------------+--------+
-        | Header |       Control       |      Addressing     | Length |                NET Packet               |       Checksum      | Footer |
-        +--------+---------------------+---------------------+--------+-----------------------------------------+---------------------+--------+
-        |  0x7d  | 0x7e 0x5d 0x7e 0x5e | 0x7e 0x5d 0x7e 0x5e |  0x04  | 0x7e 0x5d 0x7e 0x5e 0x7e 0x5d 0x7e 0x5e | 0x7e 0x5d 0x7e 0x5e |  0x7d  |
-        +--------+---------------------+---------------------+--------+-----------------------------------------+---------------------+--------+
-        */
-        for (uint8_t i = 0; i < buffer.length; i++) {
-            put_hex(buffer.ptr[i]);
-            put_str(" ");
-        }
-        put_str("\r\n");
     }
 
     void print(uint8_t* ptr, uint8_t length) {

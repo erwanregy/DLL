@@ -17,15 +17,6 @@ struct Frame {
     Frame();
 };
 
-struct Buffer {
-    uint8_t* ptr;
-    uint8_t length;
-    Buffer();
-};
-
-Buffer byte_stuff(Frame);
-Frame de_byte_stuff(Buffer);
-
 class DLL {
 #ifdef DEBUG
     public:
@@ -33,24 +24,29 @@ class DLL {
     private:
 #endif
     Frame frame;
-    Buffer stuffed_frame;
-    #ifdef DEBUG
-        Buffer* sent_frames;
-        uint8_t num_sent_frames;
-        Buffer received_packet;
-    #endif
-    Buffer reconstructed_packet;
+    uint8_t* stuffed_frame;
+    uint8_t stuffed_frame_len;
+    uint8_t* reconstructed_packet;
+    uint8_t reconstructed_packet_len;
     bool error;
+    void byte_stuff();
+    void de_byte_stuff();
     void calc_crc();
     bool check_crc();
 public:
+    #ifdef DEBUG
+        uint8_t** sent_frames;
+        uint8_t* sent_frame_lens;
+        uint8_t num_sent_frames;
+        uint8_t* received_packet;
+        uint8_t received_packet_len;
+    #endif
     DLL();
-    void send(uint8_t* packet_ptr, uint8_t packet_length, uint8_t dest_addr);
-    bool receive(uint8_t* frame_ptr, uint8_t frame_length);
+    void send(uint8_t* packet_ptr, uint8_t packet_len, uint8_t dest_addr);
+    bool receive(uint8_t* frame_ptr, uint8_t frame_len);
 };
 
 #ifdef DEBUG
     void print(Frame);
-    void print(Buffer);
-    void print(uint8_t* ptr, uint8_t length);
+    void print(uint8_t* ptr, uint8_t len);
 #endif
