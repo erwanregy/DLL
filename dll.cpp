@@ -8,30 +8,26 @@
     #define deallocate(x, ...) put_str(#x); put_str(": "); deallocate(x, ##__VA_ARGS__)
 #endif
 
-void DLL::send(uint8_t* packet_ptr, uint8_t packet_length, uint8_t dest_addr) {
-    if (packet_length == 0) {
-        return;
-    }
-    #define MAX_PACKET_LENGTH 8
-    bool remainder_packet = packet_length % MAX_PACKET_LENGTH;
-    uint8_t num_split_packets = packet_length/MAX_PACKET_LENGTH + remainder_packet;
+void DLL::send(uint8_t* packet_ptr, uint8_t packet_len, uint8_t dest_addr) {
+    bool extra_frame = packet_len % MAX_PACKET_LENGTH;
+    uint8_t num_frames = packet_len/MAX_PACKET_LENGTH + extra_frame;
     #ifdef DLL_TEST
-        allocate(sent_frames, sent_frame_lens, num_sent_frames, num_split_packets);
+        allocate(sent_frames, sent_frame_lens, num_sent_frames, num_frames);
     #endif
-    for (uint8_t split_packet_num = 0; split_packet_num < num_split_packets; split_packet_num++) {
-        uint8_t split_packet_length;
-        if (split_packet_num == (num_split_packets - 1)) {
-            split_packet_length = packet_length - (num_split_packets - 1) * MAX_PACKET_LENGTH;
+    for (uint8_t frame_num = 0; frame_num < num_frames; frame_num++) {
+        uint8_t frame_packet_len;
+        if (frame_num == num_frames - 1) {
+            frame_packet_len = packet_len - (num_frames - 1)*MAX_PACKET_LENGTH;
         } else {
-            split_packet_length = MAX_PACKET_LENGTH;
+            frame_packet_len = MAX_PACKET_LENGTH;
         }
-        frame.control[0] = split_packet_num;
-        frame.control[1] = num_split_packets - 1;
+        frame.control[0] = frame_num;
+        frame.control[1] = num_frames - 1;
         frame.addressing[0] = MAC_ADDR;
         frame.addressing[1] = dest_addr;
-        allocate(frame.net_packet, frame.length, split_packet_length);
-        for (uint8_t i = 0; i < split_packet_length; i++) {
-            frame.net_packet[i] = packet_ptr[split_packet_num * MAX_PACKET_LENGTH + i]; 
+        allocate(frame.net_packet, frame.length, frame_packet_len);
+        for (uint8_t i = 0; i < frame_packet_len; i++) {
+            frame.net_packet[i] = packet_ptr[frame_num*MAX_PACKET_LENGTH + i]; 
         }
         calc_crc();
         byte_stuff(); // allocates memory
@@ -41,8 +37,8 @@ void DLL::send(uint8_t* packet_ptr, uint8_t packet_length, uint8_t dest_addr) {
             put_str("Stuffed frame: "); print(stuffed_frame, stuffed_frame_len);
         #endif
         #ifdef DLL_TEST
-            allocate(sent_frames[split_packet_num], sent_frame_lens[split_packet_num], stuffed_frame_len);
-            memcpy(sent_frames[split_packet_num], stuffed_frame, stuffed_frame_len);
+            allocate(sent_frames[frame_num], sent_frame_lens[frame_num], stuffed_frame_len);
+            memcpy(sent_frames[frame_num], stuffed_frame, stuffed_frame_len);
         #endif
         deallocate(frame.net_packet, frame.length);
         deallocate(stuffed_frame, stuffed_frame_len);
@@ -142,12 +138,14 @@ void DLL::byte_stuff() {
     }
     message[message_length - 2] = frame.checksum[0];
     message[message_length - 1] = frame.checksum[1];
+    // print(message, message_length);
 
     for (uint8_t i = 0; i < message_length; i++) {
         // Detect FLAG or ESC
         if (message[i] == FLAG or message[i] == ESC) {
             // Increment length of message
             reallocate(message, message_length, message_length + 1);
+            // print(message, message_length);
             // Shift bytes after i right
             uint8_t temp[message_length - i];
             memcpy(temp, &message[i], message_length - i);
@@ -158,6 +156,7 @@ void DLL::byte_stuff() {
             message[i + 1] ^= 0x20;
             // Skip escaped (next) byte
             i++;
+            // print(message, message_length);
         }
     }
 
@@ -182,10 +181,7 @@ void DLL::de_byte_stuff() {
             // XOR de-escaped byte
             message[i] ^= 0x20;
             // Decrement message length
-            uint8_t temp[message_length - 1];
-            memcpy(temp, message, message_length - 1);
             reallocate(message, message_length, message_length - 1);
-            memcpy(message, temp, message_length);
         }
     }
 

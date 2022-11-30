@@ -1,5 +1,6 @@
 #include "mem.hpp"
 #include <stdlib.h>
+#include <string.h>
 #include "config.hpp"
 
 bool mem_leak() {
@@ -53,7 +54,10 @@ void allocate(uint8_t**& ptr, uint8_t*& lens, uint8_t& len, uint8_t new_len) {
 }
 
 void reallocate(uint8_t*& ptr, uint8_t& len, uint8_t new_len) {
-    ptr = (uint8_t*) realloc(ptr, sizeof(*ptr) * new_len);
+    uint8_t temp[new_len];
+    memcpy(temp, ptr, new_len);
+    ptr = (uint8_t*) malloc(sizeof(*ptr) * new_len);
+    memcpy(ptr, temp, new_len);
     if (ptr == NULL) {
         #ifdef DEBUG_MEM
             put_str("Failed to reallocate\r\n");
@@ -65,7 +69,7 @@ void reallocate(uint8_t*& ptr, uint8_t& len, uint8_t new_len) {
     #ifdef DEBUG_MEM
         put_str("Reallocated from "); put_uint8(sizeof(*ptr) * len); put_str(" to "); put_uint8(sizeof(*ptr) * new_len); put_str(" bytes (");
         if (num_bytes & (1 << 7)) {
-            put_xh('-');
+            put_ch('-');
             num_bytes = sizeof(*ptr) * (len - new_len);
         } else {
             put_ch('+');
@@ -77,13 +81,10 @@ void reallocate(uint8_t*& ptr, uint8_t& len, uint8_t new_len) {
 }
 
 // void reallocate(uint8_t**& ptr, uint8_t*& lens, uint8_t& len, uint8_t new_len) {
-//     ptr = (uint8_t**) realloc(ptr, sizeof(*ptr) * new_len);
-//     if (ptr == NULL) {
-//         #ifdef DEBUG_MEM
-//             put_str("Failed to reallocate\r\n");
-//         #endif
-//         return;
-//     }
+//     uint8_t* temp[new_len];
+//     memcpy(temp, ptr, new_len);
+//     ptr = (uint8_t**) malloc(sizeof(*ptr) * new_len);
+//     memcpy(ptr, temp, new_len);
 //     int8_t num_bytes = sizeof(*ptr) * (new_len - len);
 //     mem_use += num_bytes;
 //     #ifdef DEBUG_MEM

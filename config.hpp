@@ -1,7 +1,7 @@
 #pragma once
 
 #define DLL_TEST
-// #define DEBUG_DLL
+#define DEBUG_DLL
 // #define DEBUG_MEM
 // #define SILENCE
 
@@ -25,6 +25,6 @@
         #define _delay_ms(ms) (0)
     #else
         #include "uart.h"
-        #include <avr/delay.h>
+        #include <util/delay.h>
     #endif
 #endif

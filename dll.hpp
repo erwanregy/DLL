@@ -5,6 +5,7 @@
 #define FLAG     0x7D
 #define ESC      0x7E
 #define MAC_ADDR 0
+#define MAX_PACKET_LENGTH 8
 
 struct Frame {
     uint8_t header;
