@@ -19,123 +19,123 @@ void print_mem_use() {
     }
 }
 
-void allocate(uint8_t*& ptr, uint8_t& len, uint8_t new_len) {
-    ptr = (uint8_t*) malloc(sizeof(*ptr) * new_len);
-    if (ptr == NULL) {
+void allocate(uint8_t*& buffer, uint8_t& length, uint8_t new_length) {
+    buffer = (uint8_t*) malloc(sizeof(*buffer) * new_length);
+    if (buffer == NULL) {
         #ifdef DEBUG_MEM
             put_str("Failed to allocate\r\n");
         #endif
         return;
     }
-    uint8_t num_bytes = sizeof(*ptr) * new_len;
+    uint8_t num_bytes = sizeof(*buffer) * new_length;
     mem_use += num_bytes;
     #ifdef DEBUG_MEM
         put_str("Allocated "); put_uint8(num_bytes); put_str(" bytes (+"); put_uint8(num_bytes); put_str(")\r\n");
         print_mem_use();
     #endif
-    len = new_len;
+    length = new_length;
 }
 
-void allocate(uint8_t**& ptr, uint8_t*& lens, uint8_t& len, uint8_t new_len) {
-    ptr = (uint8_t**) malloc(sizeof(*ptr) * new_len);
-    if (ptr == NULL) {
+void allocate(uint8_t**& buffer, uint8_t*& lengths, uint8_t& length, uint8_t new_length) {
+    buffer = (uint8_t**) malloc(sizeof(*buffer) * new_length);
+    if (buffer == NULL) {
         #ifdef DEBUG_MEM
             put_str("Failed to allocate\r\n");
         #endif
         return;
     }
-    uint8_t num_bytes = sizeof(*ptr) * new_len;
+    uint8_t num_bytes = sizeof(*buffer) * new_length;
     mem_use += num_bytes;
     #ifdef DEBUG_MEM
         put_str("Allocated "); put_uint8(num_bytes); put_str(" bytes (+"); put_uint8(num_bytes); put_str(")\r\n");
         print_mem_use();
     #endif
-    allocate(lens, len, new_len);
+    allocate(lengths, length, new_length);
 }
 
-void reallocate(uint8_t*& ptr, uint8_t& len, uint8_t new_len) {
-    uint8_t temp[new_len];
-    memcpy(temp, ptr, new_len);
-    ptr = (uint8_t*) malloc(sizeof(*ptr) * new_len);
-    memcpy(ptr, temp, new_len);
-    if (ptr == NULL) {
+void reallocate(uint8_t*& buffer, uint8_t& length, uint8_t new_length) {
+    uint8_t temp[new_length];
+    memcpy(temp, buffer, new_length);
+    buffer = (uint8_t*) malloc(sizeof(*buffer) * new_length);
+    memcpy(buffer, temp, new_length);
+    if (buffer == NULL) {
         #ifdef DEBUG_MEM
             put_str("Failed to reallocate\r\n");
         #endif
         return;
     }
-    int8_t num_bytes = sizeof(*ptr) * (new_len - len);
+    int8_t num_bytes = sizeof(*buffer) * (new_length - length);
     mem_use += num_bytes;
     #ifdef DEBUG_MEM
-        put_str("Reallocated from "); put_uint8(sizeof(*ptr) * len); put_str(" to "); put_uint8(sizeof(*ptr) * new_len); put_str(" bytes (");
+        put_str("Reallocated from "); put_uint8(sizeof(*buffer) * length); put_str(" to "); put_uint8(sizeof(*buffer) * new_length); put_str(" bytes (");
         if (num_bytes & (1 << 7)) {
             put_ch('-');
-            num_bytes = sizeof(*ptr) * (len - new_len);
+            num_bytes = sizeof(*buffer) * (length - new_length);
         } else {
             put_ch('+');
         }
         put_uint8(num_bytes); put_str(")\r\n");
         print_mem_use();
     #endif
-    len = new_len;
+    length = new_length;
 }
 
-// void reallocate(uint8_t**& ptr, uint8_t*& lens, uint8_t& len, uint8_t new_len) {
-//     uint8_t* temp[new_len];
-//     memcpy(temp, ptr, new_len);
-//     ptr = (uint8_t**) malloc(sizeof(*ptr) * new_len);
-//     memcpy(ptr, temp, new_len);
-//     int8_t num_bytes = sizeof(*ptr) * (new_len - len);
+// void reallocate(uint8_t**& buffer, uint8_t*& lengths, uint8_t& length, uint8_t new_length) {
+//     uint8_t* temp[new_length];
+//     memcpy(temp, buffer, new_length);
+//     buffer = (uint8_t**) malloc(sizeof(*buffer) * new_length);
+//     memcpy(buffer, temp, new_length);
+//     int8_t num_bytes = sizeof(*buffer) * (new_length - length);
 //     mem_use += num_bytes;
 //     #ifdef DEBUG_MEM
-//         put_str("Reallocated from "); put_uint8(sizeof(*ptr) * len); put_str(" to "); put_uint8(sizeof(*ptr) * new_len); put_str(" bytes (");
+//         put_str("Reallocated from "); put_uint8(sizeof(*buffer) * length); put_str(" to "); put_uint8(sizeof(*buffer) * new_length); put_str(" bytes (");
 //         if (num_bytes & (1 << 7)) {
 //             put_ch('-');
-//             num_bytes = sizeof(*ptr) * (len - new_len);
+//             num_bytes = sizeof(*buffer) * (length - new_length);
 //         } else {
 //             put_ch('+');
 //         }
 //         put_uint8(num_bytes); put_str(")\r\n");
 //         print_mem_use();
 //     #endif
-//     reallocate(lens, len, new_len);
+//     reallocate(lengths, length, new_length);
 // }
 
 
-void deallocate(uint8_t*& ptr, uint8_t& len) {
-    if (ptr == NULL) {
+void deallocate(uint8_t*& buffer, uint8_t& length) {
+    if (buffer == NULL) {
         #ifdef DEBUG_MEM
             put_str("Cannot deallocate: already deallocated\r\n");
         #endif
-        len = 0;
+        length = 0;
         return;
     }
-    free(ptr);
-    uint8_t num_bytes = sizeof(*ptr) * len;
+    free(buffer);
+    uint8_t num_bytes = sizeof(*buffer) * length;
     mem_use -= num_bytes;
     #ifdef DEBUG_MEM
         put_str("Deallocated "); put_uint8(num_bytes); put_str(" bytes (-"); put_uint8(num_bytes); put_str(")\r\n");
         print_mem_use();
     #endif
-    ptr = NULL;
-    len = 0;
+    buffer = NULL;
+    length = 0;
 }
 
-void deallocate(uint8_t**& ptr, uint8_t*& lens, uint8_t& len) {
-    if (ptr == NULL) {
+void deallocate(uint8_t**& buffer, uint8_t*& lengths, uint8_t& length) {
+    if (buffer == NULL) {
         #ifdef DEBUG_MEM
             put_str("Cannot deallocate: already deallocated\r\n");
         #endif
-        len = 0;
+        length = 0;
         return;
     }
-    free(ptr);
-    uint8_t num_bytes = sizeof(*ptr) * len;
+    free(buffer);
+    uint8_t num_bytes = sizeof(*buffer) * length;
     mem_use -= num_bytes;
     #ifdef DEBUG_MEM
         put_str("Deallocated "); put_uint8(num_bytes); put_str(" bytes (-"); put_uint8(num_bytes); put_str(")\r\n");
         print_mem_use();
     #endif
-    ptr = NULL;
-    deallocate(lens, len);
+    buffer = NULL;
+    deallocate(lengths, length);
 }

@@ -9,8 +9,8 @@
     #define deallocate(x, ...) put_str(#x); put_str(": "); deallocate(x, ##__VA_ARGS__)
 #endif
 
-#define NUM_TESTS 200
-#define NUM_UPDATES 10
+#define NUM_TESTS 50000
+#define NUM_UPDATES 100
 
 bool dll_test();
 
@@ -34,13 +34,16 @@ int main() {
 
 bool dll_test() {
     DLL dll;
-    uint8_t packet_length = rand() % 24 + 1;
+    // uint8_t packet_length = rand() % 24 + 1;
+    uint8_t packet_length = rand() % 255 + 1;
     uint8_t packet[packet_length];
     // Initialise packet to send
     for (uint16_t byte_num = 0; byte_num < packet_length; byte_num++) {
         // packet[byte_num] = rand() % 0x100;
         // packet[byte_num] = rand() % 10 + 0x70;
         packet[byte_num] = rand() % 2 + FLAG;
+        // packet[byte_num] = rand() % (FLAG - 1) + 1;
+        // packet[byte_num] = 0;
     }
     #ifdef DEBUG_DLL
         put_str("TX: \r\n");
@@ -51,20 +54,20 @@ bool dll_test() {
     // For each sent frame
     for (uint8_t frame_num = 0; frame_num < dll.num_sent_frames; frame_num++) {
         // Receive frame
-        dll.receive(dll.sent_frames[frame_num], dll.sent_frame_lens[frame_num]);
+        dll.receive(dll.sent_frames[frame_num], dll.sent_frame_lengths[frame_num]);
         // Deallocate sent frame
-        deallocate(dll.sent_frames[frame_num], dll.sent_frame_lens[frame_num]);
+        deallocate(dll.sent_frames[frame_num], dll.sent_frame_lengths[frame_num]);
     }
     #ifdef DEBUG_DLL
         put_str("RX: \r\n");
     #endif
     // Deallocate sent frames buffer
-    deallocate(dll.sent_frames, dll.sent_frame_lens, dll.num_sent_frames);
+    deallocate(dll.sent_frames, dll.sent_frame_lengths, dll.num_sent_frames);
     // Check received packet length matches
-    if (dll.received_packet_len != packet_length) {
-        put_str("Error: Lengths do not match\r\n");
-        put_str("sent_packet_len = "); put_uint8(packet_length);
-        put_str(", received_packet_len = "); put_uint8(dll.received_packet_len); put_str("\r\n");
+    if (dll.received_packet_length != packet_length) {
+        put_str("Error: lengths do not match\r\n");
+        put_str("sent_packet_length = "); put_uint8(packet_length);
+        put_str(", received_packet_length = "); put_uint8(dll.received_packet_length); put_str("\r\n");
         return 1;
     }
     // Check received packet (data) matches
@@ -83,7 +86,7 @@ bool dll_test() {
         }
     }
     // Deallocate received packet
-    deallocate(dll.received_packet, dll.received_packet_len);
+    deallocate(dll.received_packet, dll.received_packet_length);
     // Check for no memory leaks
     if (mem_leak()) {
         put_str("Error: Memory leak!\r\n");

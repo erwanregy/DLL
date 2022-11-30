@@ -8,56 +8,56 @@
     #define deallocate(x, ...) put_str(#x); put_str(": "); deallocate(x, ##__VA_ARGS__)
 #endif
 
-void DLL::send(uint8_t* packet_ptr, uint8_t packet_len, uint8_t dest_addr) {
-    bool extra_frame = packet_len % MAX_PACKET_LENGTH;
-    uint8_t num_frames = packet_len/MAX_PACKET_LENGTH + extra_frame;
+void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address) {
+    bool extra_frame = packet_length % MAX_PACKET_LENGTH;
+    uint8_t num_frames = packet_length/MAX_PACKET_LENGTH + extra_frame;
     #ifdef DLL_TEST
-        allocate(sent_frames, sent_frame_lens, num_sent_frames, num_frames);
+        allocate(sent_frames, sent_frame_lengths, num_sent_frames, num_frames);
     #endif
     for (uint8_t frame_num = 0; frame_num < num_frames; frame_num++) {
-        uint8_t frame_packet_len;
+        uint8_t frame_packet_length;
         if (frame_num == num_frames - 1) {
-            frame_packet_len = packet_len - (num_frames - 1)*MAX_PACKET_LENGTH;
+            frame_packet_length = packet_length - (num_frames - 1)*MAX_PACKET_LENGTH;
         } else {
-            frame_packet_len = MAX_PACKET_LENGTH;
+            frame_packet_length = MAX_PACKET_LENGTH;
         }
         frame.control[0] = frame_num;
         frame.control[1] = num_frames - 1;
-        frame.addressing[0] = MAC_ADDR;
-        frame.addressing[1] = dest_addr;
-        allocate(frame.net_packet, frame.length, frame_packet_len);
-        for (uint8_t i = 0; i < frame_packet_len; i++) {
-            frame.net_packet[i] = packet_ptr[frame_num*MAX_PACKET_LENGTH + i]; 
+        frame.addressing[0] = MAC_ADDRESS;
+        frame.addressing[1] = destination_address;
+        allocate(frame.net_packet, frame.length, frame_packet_length);
+        for (uint8_t i = 0; i < frame_packet_length; i++) {
+            frame.net_packet[i] = packet[frame_num*MAX_PACKET_LENGTH + i]; 
         }
         calc_crc();
         byte_stuff(); // allocates memory
-        // PHY.send(stuffed_frame, stuffed_frame_len);
+        // PHY.send(stuffed_frame, stuffed_frame_length);
         #ifdef DEBUG_DLL
             print(frame);
-            put_str("Stuffed frame: "); print(stuffed_frame, stuffed_frame_len);
+            put_str("Stuffed frame: "); print(stuffed_frame, stuffed_frame_length);
         #endif
         #ifdef DLL_TEST
-            allocate(sent_frames[frame_num], sent_frame_lens[frame_num], stuffed_frame_len);
-            memcpy(sent_frames[frame_num], stuffed_frame, stuffed_frame_len);
+            allocate(sent_frames[frame_num], sent_frame_lengths[frame_num], stuffed_frame_length);
+            memcpy(sent_frames[frame_num], stuffed_frame, stuffed_frame_length);
         #endif
         deallocate(frame.net_packet, frame.length);
-        deallocate(stuffed_frame, stuffed_frame_len);
+        deallocate(stuffed_frame, stuffed_frame_length);
     }
 }
 
-bool DLL::receive(uint8_t* frame_ptr, uint8_t frame_len) {
-    allocate(stuffed_frame, stuffed_frame_len, frame_len);
-    memcpy(stuffed_frame, frame_ptr, stuffed_frame_len);
+bool DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
+    allocate(stuffed_frame, stuffed_frame_length, received_frame_length);
+    memcpy(stuffed_frame, received_frame, stuffed_frame_length);
 
     de_byte_stuff(); // allocates memory
     #ifdef DEBUG_DLL
-        put_str("Stuffed frame: "); print(stuffed_frame, stuffed_frame_len);
+        put_str("Stuffed frame: "); print(stuffed_frame, stuffed_frame_length);
         print(frame);
     #endif
-    deallocate(stuffed_frame, stuffed_frame_len);
+    deallocate(stuffed_frame, stuffed_frame_length);
 
     // Check that destination MAC address in frame matches local MAC address or is in broadcast mode
-    if (frame.addressing[1] != MAC_ADDR and frame.addressing[1] != 0xFF) {
+    if (frame.addressing[1] != MAC_ADDRESS and frame.addressing[1] != 0xFF) {
         #ifdef DEBUG_DLL
             put_str("Dropping frame: Destination address does not match devices\r\n");
         #endif
@@ -88,34 +88,34 @@ bool DLL::receive(uint8_t* frame_ptr, uint8_t frame_len) {
             put_str("Packet: "); print(frame.net_packet, frame.length);
         #endif
         #ifdef DLL_TEST
-            allocate(received_packet, received_packet_len, frame.length);
-            memcpy(received_packet, frame.net_packet, received_packet_len);
+            allocate(received_packet, received_packet_length, frame.length);
+            memcpy(received_packet, frame.net_packet, received_packet_length);
         #endif
         // NET.receive(frame.net_packet, frame.length, frame.addressing[0]);
     // Split packet
     } else {
         // First split packet
         if (frame.control[0] == 0) {
-            allocate(reconstructed_packet, reconstructed_packet_len, frame.length);
-            memcpy(reconstructed_packet, frame.net_packet, reconstructed_packet_len);
+            allocate(reconstructed_packet, reconstructed_packet_length, frame.length);
+            memcpy(reconstructed_packet, frame.net_packet, reconstructed_packet_length);
         // Nth split packet
         } else {
             // Increment reconstructed packet length
-            reallocate(reconstructed_packet, reconstructed_packet_len, reconstructed_packet_len + frame.length);
+            reallocate(reconstructed_packet, reconstructed_packet_length, reconstructed_packet_length + frame.length);
             // Append new split packet onto reconstructed packet
-            memcpy(&reconstructed_packet[reconstructed_packet_len - frame.length], frame.net_packet, frame.length);
+            memcpy(&reconstructed_packet[reconstructed_packet_length - frame.length], frame.net_packet, frame.length);
             // Last split packet
             if (frame.control[0] == frame.control[1]) {
-                // NET.receive(reconstructed_packet, reconstructed_packet_len, frame.addressing[0]);
+                // NET.receive(reconstructed_packet, reconstructed_packet_length, frame.addressing[0]);
                 #ifdef DEBUG_DLL
-                    put_str("Packet: "); print(reconstructed_packet, reconstructed_packet_len);
+                    put_str("Packet: "); print(reconstructed_packet, reconstructed_packet_length);
                 #endif
                 #ifdef DLL_TEST
-                    allocate(received_packet, received_packet_len, reconstructed_packet_len);
-                    memcpy(received_packet, reconstructed_packet, reconstructed_packet_len);
+                    allocate(received_packet, received_packet_length, reconstructed_packet_length);
+                    memcpy(received_packet, reconstructed_packet, reconstructed_packet_length);
                 #endif
                 // Free memory
-                deallocate(reconstructed_packet, reconstructed_packet_len);
+                deallocate(reconstructed_packet, reconstructed_packet_length);
             }
         }
     }
@@ -160,10 +160,10 @@ void DLL::byte_stuff() {
         }
     }
 
-    allocate(stuffed_frame, stuffed_frame_len, 1 + message_length + 1);
+    allocate(stuffed_frame, stuffed_frame_length, 1 + message_length + 1);
     stuffed_frame[0] = FLAG;
     memcpy(&stuffed_frame[1], message, message_length);
-    stuffed_frame[stuffed_frame_len - 1] = FLAG;
+    stuffed_frame[stuffed_frame_length - 1] = FLAG;
 
     deallocate(message, message_length);
 }
@@ -171,7 +171,7 @@ void DLL::byte_stuff() {
 void DLL::de_byte_stuff() {
     uint8_t message_length;
     uint8_t* message = NULL;
-    allocate(message, message_length, stuffed_frame_len - 2);
+    allocate(message, message_length, stuffed_frame_length - 2);
     memcpy(message, &stuffed_frame[1], message_length);
     
     for (uint8_t i = 0; i < message_length; i++) {
@@ -269,17 +269,17 @@ Frame::Frame() {
 
 DLL::DLL() {
     stuffed_frame = NULL;
-    stuffed_frame_len = 0;
+    stuffed_frame_length = 0;
     reconstructed_packet = NULL;
-    reconstructed_packet_len = 0;
+    reconstructed_packet_length = 0;
     #ifdef DLL_TEST
         sent_frames = NULL;
-        sent_frame_lens = NULL;
+        sent_frame_lengths = NULL;
         num_sent_frames = 0;
         // received_frames = NULL;
         // num_received_frames = 0;
         received_packet = NULL;
-        received_packet_len = 0;
+        received_packet_length = 0;
     #endif
     error = false;
 }
