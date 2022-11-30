@@ -1,5 +1,5 @@
-build: main.cpp dll.cpp uart.cpp mem.cpp
-	avr-g++ -mmcu=atmega644p -DF_CPU=12000000 -Wall -Os main.cpp dll.cpp uart.cpp mem.cpp -o dll.elf
+build: main.cpp dll.cpp uart.c mem.cpp
+	avr-g++ -mmcu=atmega644p -DF_CPU=12000000 -Wall -Os main.cpp dll.cpp uart.c mem.cpp -o dll.elf
 	avr-objcopy -O ihex dll.elf dll.hex
 	
 flash: build

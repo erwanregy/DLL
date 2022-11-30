@@ -12,7 +12,7 @@
 void init_uart0(void);
 char get_ch(void);
 void put_ch(char ch);
-void put_str(char *str);
+void put_str(const char* str);
 void put_hex(uint8_t byte);
 void put_uint8(uint8_t num);
 void put_uint16(uint16_t num);

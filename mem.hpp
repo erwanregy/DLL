@@ -1,6 +1,5 @@
 #pragma once
 #include <stdint.h>
-#include "dll.hpp"
 
 static uint16_t mem_use;
 
@@ -15,5 +14,3 @@ void reallocate(uint8_t*& ptr, uint8_t& len, uint8_t new_len);
 
 void deallocate(uint8_t*& ptr, uint8_t& len);
 void deallocate(uint8_t**& ptr, uint8_t*& lens, uint8_t& len);
-
-void mem_test();

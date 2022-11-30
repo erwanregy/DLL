@@ -18,7 +18,6 @@ void print_mem_use() {
     }
 }
 
-
 void allocate(uint8_t*& ptr, uint8_t& len, uint8_t new_len) {
     ptr = (uint8_t*) malloc(sizeof(*ptr) * new_len);
     if (ptr == NULL) {
@@ -53,7 +52,6 @@ void allocate(uint8_t**& ptr, uint8_t*& lens, uint8_t& len, uint8_t new_len) {
     allocate(lens, len, new_len);
 }
 
-
 void reallocate(uint8_t*& ptr, uint8_t& len, uint8_t new_len) {
     ptr = (uint8_t*) realloc(ptr, sizeof(*ptr) * new_len);
     if (ptr == NULL) {
@@ -67,10 +65,10 @@ void reallocate(uint8_t*& ptr, uint8_t& len, uint8_t new_len) {
     #ifdef DEBUG_MEM
         put_str("Reallocated from "); put_uint8(sizeof(*ptr) * len); put_str(" to "); put_uint8(sizeof(*ptr) * new_len); put_str(" bytes (");
         if (num_bytes & (1 << 7)) {
-            put_str("-");
+            put_xh('-');
             num_bytes = sizeof(*ptr) * (len - new_len);
         } else {
-            put_str("+");
+            put_ch('+');
         }
         put_uint8(num_bytes); put_str(")\r\n");
         print_mem_use();
@@ -91,10 +89,10 @@ void reallocate(uint8_t*& ptr, uint8_t& len, uint8_t new_len) {
 //     #ifdef DEBUG_MEM
 //         put_str("Reallocated from "); put_uint8(sizeof(*ptr) * len); put_str(" to "); put_uint8(sizeof(*ptr) * new_len); put_str(" bytes (");
 //         if (num_bytes & (1 << 7)) {
-//             put_str("-");
+//             put_ch('-');
 //             num_bytes = sizeof(*ptr) * (len - new_len);
 //         } else {
-//             put_str("+");
+//             put_ch('+');
 //         }
 //         put_uint8(num_bytes); put_str(")\r\n");
 //         print_mem_use();

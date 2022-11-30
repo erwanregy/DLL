@@ -10,8 +10,8 @@ void init_uart0(void) {
 }
 
 char get_ch(void) {
-	while (!( UCSR0A & _BV(RXC0)));
-	return UDR0 ;
+	while (!(UCSR0A & _BV(RXC0)));
+	return UDR0;
 }
 
 void put_ch(char ch) {
@@ -19,9 +19,11 @@ void put_ch(char ch) {
 	UDR0 = ch;
 }
 
-void put_str(char *str) {
+void put_str(const char* str) {
 	int i;
-	for (i=0; str[i]; i++) put_ch(str[i]);
+	for (i = 0; str[i]; i++) {
+		put_ch(str[i]);
+	}
 }
 
 void put_hex(uint8_t byte) {
