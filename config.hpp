@@ -1,7 +1,7 @@
 #pragma once
 
 #define DLL_TEST
-// #define DEBUG_DLL
+#define DEBUG_DLL
 // #define DEBUG_MEM
 // #define SILENCE
 
@@ -21,10 +21,8 @@
         #define put_hex(hex) printf("0x%02X", hex)
         #define put_uint8(uint8) printf("%u", uint8)
         #define put_uint16(uint16) printf("%u", uint16)
-        #define init_uart0() (0)
-        #define _delay_ms(ms) (0)
-    #else
-        #include "uart.h"
+    #else // AVR
+        #include "../UART/uart.h"
         #include <util/delay.h>
     #endif
 #endif

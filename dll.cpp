@@ -9,6 +9,9 @@
 #endif
 
 void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address) {
+    #ifdef DEBUG_DLL
+        put_str("TX: \r\n");
+    #endif
     bool extra_frame = packet_length % MAX_PACKET_LENGTH;
     uint8_t num_frames = packet_length/MAX_PACKET_LENGTH + extra_frame;
     #ifdef DLL_TEST
@@ -29,7 +32,9 @@ void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_addre
         for (uint8_t i = 0; i < frame_packet_length; i++) {
             frame.net_packet[i] = packet[frame_num*MAX_PACKET_LENGTH + i]; 
         }
-        calc_crc();
+        uint16_t crc = calculate_crc();
+        frame.checksum[0] = (crc & 0xFF00) >> 8;
+        frame.checksum[1] = (crc & 0x00FF);
         byte_stuff(); // allocates memory
         // PHY.send(stuffed_frame, stuffed_frame_length);
         #ifdef DEBUG_DLL
@@ -45,7 +50,10 @@ void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_addre
     }
 }
 
-bool DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
+void DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
+    #ifdef DEBUG_DLL
+        put_str("RX: \r\n");
+    #endif
     allocate(stuffed_frame, stuffed_frame_length, received_frame_length);
     memcpy(stuffed_frame, received_frame, stuffed_frame_length);
 
@@ -61,7 +69,7 @@ bool DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
         #ifdef DEBUG_DLL
             put_str("Dropping frame: Destination address does not match devices\r\n");
         #endif
-        return 1;
+        return;
     }
     
     // TODO: Error in previous split packet frame handling
@@ -70,16 +78,19 @@ bool DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
         if (frame.control[0] == frame.control[1]) {
             error == false;
         }
-        return 1;
+        return;
     }
     
     // Error in current frame handling
-    error = check_crc();
+    uint16_t crc = calculate_crc();
+    if (crc != (frame.checksum[0] << 8) + frame.checksum[1]) {
+        error = true;
+    }
     if (error == true) {
         #ifdef DEBUG_DLL
             put_str("Dropping frame: Error detected in frame\r\n");
         #endif
-        return 1;
+        return;
     }
 
     // Single packet (no split packets)
@@ -120,8 +131,6 @@ bool DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
         }
     }
     deallocate(frame.net_packet, frame.length);
-    
-    return 0;
 }
 
 void DLL::byte_stuff() {
@@ -197,8 +206,8 @@ void DLL::de_byte_stuff() {
     deallocate(message, message_length);
 }
 
-void DLL::calc_crc() {
-    uint8_t message_length = 2 + 2 + 1 + frame.length + 2;
+uint16_t DLL::calculate_crc() {
+    uint8_t message_length = 2 + 2 + 1 + frame.length;
     uint8_t message[message_length];
     message[0] = frame.control[0];
     message[1] = frame.control[1];
@@ -208,56 +217,28 @@ void DLL::calc_crc() {
     for (uint8_t i = 0; i < frame.length; i++) {
         message[5 + i] = frame.net_packet[i];
     }
-    message[message_length - 2] = 0;
-    message[message_length - 1] = 0;
 
-    #define POLYNOMIAL 0x8005
+    // Initialize the value of the CRC to 0
+    uint16_t crc = 0;
 
-    for (uint8_t bit = 0; bit < message_length*8; bit++) {
-        uint8_t byte = bit/8;
-        // while (message)
-        // (POLYNOMIAL >> i);
+    // Perform modulo-2 division, a byte at a time.
+    for (int byte = 0; byte < message_length; byte++) {
+        // Bring the next byte into the crc.
+        crc ^= message[byte] << 8;
 
-        // uint8_t mask0 = 0xFF >> bit;
-        // uint8_t mask1 = 0xFF << bit;
-        // uint8_t& message_byte = message[byte] & mask;
-    }
+        // Perform modulo-2 division, a bit at a time.
+        for (uint8_t bit = 8; bit > 0; --bit) {
 
-    frame.checksum[0] = message[message_length - 2];
-    frame.checksum[1] = message[message_length - 1];
-
-    /* #define WIDTH  (8 * sizeof(uint16_t))
-    #define TOPBIT (1 << (WIDTH - 1))
-
-    uint16_t remainder = 0;	
-    // Perform modulo-2 division one byte at a time
-    for (uint8_t byte = 0; byte < message_length; byte++) {
-        // Bring the next byte into the remainder
-        remainder ^= (message[byte] << (WIDTH - 8));
-
-        // Perform modulo-2 division one a bit at a time
-        for (uint8_t bit = 8; bit > 0; bit--) {
-            // Try to divide the current message bit
-            if (remainder & TOPBIT) {
-                remainder = (remainder << 1) ^ POLYNOMIAL;
+            // Try to divide the current data bit.
+            if (crc & (1 << 15)) {
+                crc = (crc << 1) ^ POLYNOMIAL;
             } else {
-                remainder = (remainder << 1);
+                crc = (crc << 1);
             }
         }
     }
 
-    // #ifdef DEBUG_DLL
-        // put_hex((remainder & 0xFF00) >> 8); put_ch(' ');
-        // put_hex((remainder & 0x00FF)); put_str("\r\n");
-    // #endif
-
-    // The final remainder is the CRC result
-    // frame.checksum[0] = (remainder & 0xFF00) >> 8;
-    // frame.checksum[1] = (remainder & 0x00FF); */
-}
-
-bool DLL::check_crc() {
-    return 0;
+    return crc;
 }
 
 Frame::Frame() {

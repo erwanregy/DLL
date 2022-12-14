@@ -9,15 +9,17 @@
     #define deallocate(x, ...) put_str(#x); put_str(": "); deallocate(x, ##__VA_ARGS__)
 #endif
 
-#define NUM_TESTS 50000
+#define NUM_TESTS 100
 #define NUM_UPDATES 100
 
 bool dll_test();
 
 int main() {
-    init_uart0();   // init uart
-    _delay_ms(100); // delay for uart to initialize properly
-    put_str("--------------------------------------------------------\r\n");
+    #ifndef WINDOWS
+        init_uart0();   // init uart
+        _delay_ms(100); // delay for uart to initialize properly
+        put_str("--------------------------------------------------------\r\n");
+    #endif
     for (uint16_t i = 0; i < NUM_TESTS; i++) {
         if (dll_test()) {
             put_str("Test "); put_uint16(i + 1); put_str(" failed\r\n");
@@ -29,13 +31,14 @@ int main() {
             put_uint16(i + 1); put_str(" tests passed\r\n");
         }
     }
-    return 0;
 }
 
 bool dll_test() {
     DLL dll;
-    // uint8_t packet_length = rand() % 24 + 1;
-    uint8_t packet_length = rand() % 255 + 1;
+    uint8_t packet_length = rand() % 24 + 1;
+    // uint8_t packet_length = 24;
+    // uint8_t packet_length = rand() % 255 + 1;
+    // uint8_t packet_length = 12;
     uint8_t packet[packet_length];
     // Initialise packet to send
     for (uint16_t byte_num = 0; byte_num < packet_length; byte_num++) {
@@ -43,10 +46,9 @@ bool dll_test() {
         // packet[byte_num] = rand() % 10 + 0x70;
         packet[byte_num] = rand() % 2 + FLAG;
         // packet[byte_num] = rand() % (FLAG - 1) + 1;
-        // packet[byte_num] = 0;
+        // packet[byte_num] = byte_num;
     }
     #ifdef DEBUG_DLL
-        put_str("TX: \r\n");
         print(packet, packet_length);
     #endif
     // Send packet
@@ -58,9 +60,6 @@ bool dll_test() {
         // Deallocate sent frame
         deallocate(dll.sent_frames[frame_num], dll.sent_frame_lengths[frame_num]);
     }
-    #ifdef DEBUG_DLL
-        put_str("RX: \r\n");
-    #endif
     // Deallocate sent frames buffer
     deallocate(dll.sent_frames, dll.sent_frame_lengths, dll.num_sent_frames);
     // Check received packet length matches
@@ -74,14 +73,8 @@ bool dll_test() {
     for (uint8_t byte_num = 0; byte_num < packet_length; byte_num++) {
         if (dll.received_packet[byte_num] != packet[byte_num]) {
             put_str("Error: Packets do not match\r\n");
-            put_str("sent_packet["); put_uint8(byte_num); put_str("] = "); put_hex(packet[byte_num]);
-            put_str(", received_packet["); put_uint8(byte_num); put_str("] = "); put_hex(dll.received_packet[byte_num]); put_str("\r\n");
-            for (byte_num++; byte_num < packet_length; byte_num++) {
-                if (dll.received_packet[byte_num] != packet[byte_num]) {
-                    put_str("sent_packet["); put_uint8(byte_num); put_str("] = "); put_hex(packet[byte_num]);
-                    put_str(", received_packet["); put_uint8(byte_num); put_str("] = "); put_hex(dll.received_packet[byte_num]); put_str("\r\n");
-                }
-            }
+            put_str("sent_packet     = "); print(packet, packet_length);
+            put_str("received_packet = "); print(dll.received_packet, dll.received_packet_length);
             return 1;
         }
     }
