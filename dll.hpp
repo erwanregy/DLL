@@ -6,7 +6,7 @@
 #define ESC  0x7E
 #define MAC_ADDRESS 0
 #define MAX_PACKET_LENGTH 8
-#define POLYNOMIAL 65521
+#define CRC_POLYNOMIAL 65521
 
 struct Frame {
     uint8_t header;
@@ -25,11 +25,7 @@ struct Frame {
 #endif
 
 class DLL {
-#ifdef DLL_TEST
-    public:
-#else
-    private:
-#endif
+private:
     Frame frame;
     uint8_t* stuffed_frame;
     uint8_t stuffed_frame_length;
@@ -40,15 +36,14 @@ class DLL {
     uint16_t calculate_crc();
     bool check_crc();
     bool split_packet_error;
-    #ifdef DLL_TEST
-        uint8_t** sent_frames;
-        uint8_t* sent_frame_lengths;
-        uint8_t num_sent_frames;
-        uint8_t* received_packet;
-        uint8_t received_packet_length;
-    #endif
 public:
-    DLL();
+#ifdef DLL_TEST
+    uint8_t* received_packet;
+    uint8_t received_packet_length;
+    void send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address, DLL& receiver);
+#else
     void send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address);
+#endif
+    DLL();
     void receive(uint8_t* frame, uint8_t frame_length);
 };

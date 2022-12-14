@@ -8,15 +8,13 @@
     #define deallocate(x, ...) put_str(#x); put_str(": "); deallocate(x, ##__VA_ARGS__)
 #endif
 
-void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address) {
-    #ifdef DEBUG_DLL
-        put_str("TX: \r\n");
-    #endif
+#ifdef DLL_TEST
+    void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address, DLL& receiver) {
+#else
+    void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address) {
+#endif
     bool extra_frame = packet_length % MAX_PACKET_LENGTH;
     uint8_t num_frames = packet_length/MAX_PACKET_LENGTH + extra_frame;
-    #ifdef DLL_TEST
-        allocate(sent_frames, sent_frame_lengths, num_sent_frames, num_frames);
-    #endif
     for (uint8_t frame_num = 0; frame_num < num_frames; frame_num++) {
         uint8_t frame_packet_length;
         if (frame_num == num_frames - 1) {
@@ -36,16 +34,14 @@ void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_addre
         frame.checksum[0] = (crc & 0xFF00) >> 8;
         frame.checksum[1] = (crc & 0x00FF);
         byte_stuff(); // allocates memory
-        // PHY.send(stuffed_frame, stuffed_frame_length);
+        deallocate(frame.net_packet, frame.length);
         #ifdef DEBUG_DLL
+            put_str("TX: \r\n");
             print(frame);
             put_str("Stuffed frame: "); print(stuffed_frame, stuffed_frame_length);
         #endif
-        #ifdef DLL_TEST
-            allocate(sent_frames[frame_num], sent_frame_lengths[frame_num], stuffed_frame_length);
-            memcpy(sent_frames[frame_num], stuffed_frame, stuffed_frame_length);
-        #endif
-        deallocate(frame.net_packet, frame.length);
+        // PHY.send(stuffed_frame, stuffed_frame_length);
+        receiver.receive(stuffed_frame, stuffed_frame_length);
         deallocate(stuffed_frame, stuffed_frame_length);
     }
 }
@@ -234,10 +230,9 @@ uint16_t DLL::calculate_crc() {
         // Perform modulo-2 division, a bit at a time.
         for (uint8_t bit = 8; bit > 0; bit--) {
             // Try to divide the current data bit.
+            crc <<= 1;
             if (crc & (1 << 15)) {
-                crc = (crc << 1) ^ POLYNOMIAL;
-            } else {
-                crc = (crc << 1);
+                crc ^= CRC_POLYNOMIAL;
             }
         }
     }
@@ -266,16 +261,11 @@ DLL::DLL() {
     stuffed_frame_length = 0;
     reconstructed_packet = NULL;
     reconstructed_packet_length = 0;
+    split_packet_error = false;
     #ifdef DLL_TEST
-        sent_frames = NULL;
-        sent_frame_lengths = NULL;
-        num_sent_frames = 0;
-        // received_frames = NULL;
-        // num_received_frames = 0;
         received_packet = NULL;
         received_packet_length = 0;
     #endif
-    split_packet_error = false;
 }
 
 #ifdef DLL_TEST
@@ -326,41 +316,22 @@ DLL::DLL() {
             put_ch('+');
         }
         put_str("------------+--------+\r\n");
-        put_str("|  ");
-        put_hex(frame.header);
-        put_str("  | ");
-        put_hex(frame.control[0]);
-        put_ch(' ');
-        put_hex(frame.control[1]);
-        put_str(" | ");
-        put_hex(frame.addressing[0]);
-        put_str("  ");
-        put_hex(frame.addressing[1]);
-        put_str(" |  ");
-        put_hex(frame.length);
-        put_str("  | ");
+        put_str("|  "); put_hex(frame.header); put_str("  | ");
+        put_hex(frame.control[0]); put_ch(' '); put_hex(frame.control[1]); put_str(" | ");
+        put_hex(frame.addressing[0]); put_str("  "); put_hex(frame.addressing[1]); put_str(" |  ");
+        put_hex(frame.length); put_str("  | ");
         if (frame.length > 2) {
             for (uint8_t i = 0; i < frame.length; i++) {
-                put_hex(frame.net_packet[i]);
-                put_ch(' ');
+                put_hex(frame.net_packet[i]); put_ch(' ');
             }
             put_str("| ");
         } else if (frame.length == 2) {
-            put_hex(frame.net_packet[0]);
-            put_str("  ");
-            put_hex(frame.net_packet[1]);
-            put_str(" | ");
+            put_hex(frame.net_packet[0]); put_str("  "); put_hex(frame.net_packet[1]); put_str(" | ");
         } else if (frame.length == 1) {
-            put_str("   ");
-            put_hex(frame.net_packet[0]);
-            put_str("    | ");
+            put_str("   "); put_hex(frame.net_packet[0]); put_str("    | ");
         }
-        put_hex(frame.checksum[0]);
-        put_str("  ");
-        put_hex(frame.checksum[1]);
-        put_str(" |  ");
-        put_hex(frame.footer);
-        put_str("  |\r\n");
+        put_hex(frame.checksum[0]); put_str("  ");  put_hex(frame.checksum[1]); put_str(" |  ");
+        put_hex(frame.footer); put_str("  |\r\n");
         put_str("+--------+-----------+------------+--------+");
         if (frame.length > 0) {
             for (uint8_t i = 0; i < num_dashes; i++) {

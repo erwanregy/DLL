@@ -1,7 +1,7 @@
 #pragma once
 
 #define DLL_TEST
-#define DEBUG_DLL
+// #define DEBUG_DLL
 // #define DEBUG_MEM
 // #define SILENCE
 
