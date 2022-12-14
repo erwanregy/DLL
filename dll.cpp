@@ -71,25 +71,31 @@ void DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
         #endif
         return;
     }
-    
-    // TODO: Error in previous split packet frame handling
-    if (frame.control[1] != 0 and error == true) {
+    // Error in split packet handling
+    if (split_packet_error == true) {
         // Reset error flag to 0 on last split packet
         if (frame.control[0] == frame.control[1]) {
-            error == false;
+            split_packet_error == false;
         }
+        #ifdef DEBUG_DLL
+            put_str("Dropping frame: Error detected in previous split packet frame\r\n");
+        #endif
+        // Drop all split packet frames
         return;
     }
-    
     // Error in current frame handling
-    uint16_t crc = calculate_crc();
-    if (crc != (frame.checksum[0] << 8) + frame.checksum[1]) {
-        error = true;
-    }
-    if (error == true) {
-        #ifdef DEBUG_DLL
-            put_str("Dropping frame: Error detected in frame\r\n");
-        #endif
+    bool frame_error = check_crc();
+    if (frame_error == true) {
+        if (frame.control[1] != 0) {
+            #ifdef DEBUG_DLL
+                put_str("Dropping frame: Error detected in split packet frame\r\n");
+            #endif
+            split_packet_error = true;
+        } else {
+            #ifdef DEBUG_DLL
+                put_str("Dropping frame: Error detected in frame\r\n");
+            #endif
+        }
         return;
     }
 
@@ -207,6 +213,7 @@ void DLL::de_byte_stuff() {
 }
 
 uint16_t DLL::calculate_crc() {
+    // Copy frame contents into a byte array
     uint8_t message_length = 2 + 2 + 1 + frame.length;
     uint8_t message[message_length];
     message[0] = frame.control[0];
@@ -220,15 +227,12 @@ uint16_t DLL::calculate_crc() {
 
     // Initialize the value of the CRC to 0
     uint16_t crc = 0;
-
     // Perform modulo-2 division, a byte at a time.
     for (int byte = 0; byte < message_length; byte++) {
         // Bring the next byte into the crc.
         crc ^= message[byte] << 8;
-
         // Perform modulo-2 division, a bit at a time.
-        for (uint8_t bit = 8; bit > 0; --bit) {
-
+        for (uint8_t bit = 8; bit > 0; bit--) {
             // Try to divide the current data bit.
             if (crc & (1 << 15)) {
                 crc = (crc << 1) ^ POLYNOMIAL;
@@ -237,8 +241,17 @@ uint16_t DLL::calculate_crc() {
             }
         }
     }
-
     return crc;
+}
+
+bool DLL::check_crc() {
+    uint16_t received_crc = (frame.checksum[0] << 8) + frame.checksum[1];
+    uint16_t expected_crc = calculate_crc();
+    if (received_crc != expected_crc) {
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 Frame::Frame() {
@@ -262,7 +275,7 @@ DLL::DLL() {
         received_packet = NULL;
         received_packet_length = 0;
     #endif
-    error = false;
+    split_packet_error = false;
 }
 
 #ifdef DLL_TEST

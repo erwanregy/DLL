@@ -7,7 +7,6 @@
 #define MAC_ADDRESS 0
 #define MAX_PACKET_LENGTH 8
 #define POLYNOMIAL 65521
-// #define POLYNOMIAL 0x8005
 
 struct Frame {
     uint8_t header;
@@ -36,21 +35,19 @@ class DLL {
     uint8_t stuffed_frame_length;
     uint8_t* reconstructed_packet;
     uint8_t reconstructed_packet_length;
-    bool error;
     void byte_stuff();
     void de_byte_stuff();
     uint16_t calculate_crc();
     bool check_crc();
-public:
+    bool split_packet_error;
     #ifdef DLL_TEST
         uint8_t** sent_frames;
         uint8_t* sent_frame_lengths;
         uint8_t num_sent_frames;
-        // Frame* received_frames;
-        // uint8_t num_received_frames;
         uint8_t* received_packet;
         uint8_t received_packet_length;
     #endif
+public:
     DLL();
     void send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address);
     void receive(uint8_t* frame, uint8_t frame_length);
