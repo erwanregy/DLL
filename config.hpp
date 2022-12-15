@@ -22,7 +22,7 @@
         #define put_uint8(uint8) printf("%u", uint8)
         #define put_uint16(uint16) printf("%u", uint16)
     #else // AVR
-        #include "../UART/uart.h"
+        #include "uart.h"
         #include <util/delay.h>
     #endif
 #endif
