@@ -8,11 +8,7 @@
     #define deallocate(x, ...) put_str(#x); put_str(": "); deallocate(x, ##__VA_ARGS__)
 #endif
 
-#ifdef DLL_TEST
-    void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address, DLL& receiver) {
-#else
-    void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address) {
-#endif
+void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address) {
     bool extra_frame = packet_length % MAX_PACKET_LENGTH;
     uint8_t num_frames = packet_length/MAX_PACKET_LENGTH + extra_frame;
     for (uint8_t frame_num = 0; frame_num < num_frames; frame_num++) {
@@ -34,14 +30,17 @@
         frame.checksum[0] = (crc & 0xFF00) >> 8;
         frame.checksum[1] = (crc & 0x00FF);
         byte_stuff(); // allocates memory
-        deallocate(frame.net_packet, frame.length);
         #ifdef DEBUG_DLL
             put_str("TX: \r\n");
             print(frame);
             put_str("Stuffed frame: "); print(stuffed_frame, stuffed_frame_length);
         #endif
-        // PHY.send(stuffed_frame, stuffed_frame_length);
-        receiver.receive(stuffed_frame, stuffed_frame_length);
+        deallocate(frame.net_packet, frame.length);
+        #ifndef DLL_TEST
+            phy->send(stuffed_frame, stuffed_frame_length);
+        #else
+            receive(stuffed_frame, stuffed_frame_length);
+        #endif
         deallocate(stuffed_frame, stuffed_frame_length);
     }
 }
@@ -100,11 +99,7 @@ void DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
         #ifdef DEBUG_DLL
             put_str("Packet: "); print(frame.net_packet, frame.length);
         #endif
-        #ifdef DLL_TEST
-            allocate(received_packet, received_packet_length, frame.length);
-            memcpy(received_packet, frame.net_packet, received_packet_length);
-        #endif
-        // NET.receive(frame.net_packet, frame.length, frame.addressing[0]);
+        net->receive(frame.net_packet, frame.length, frame.addressing[0]);
     // Split packet
     } else {
         // First split packet
@@ -119,13 +114,9 @@ void DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
             memcpy(&reconstructed_packet[reconstructed_packet_length - frame.length], frame.net_packet, frame.length);
             // Last split packet
             if (frame.control[0] == frame.control[1]) {
-                // NET.receive(reconstructed_packet, reconstructed_packet_length, frame.addressing[0]);
+                net->receive(reconstructed_packet, reconstructed_packet_length, frame.addressing[0]);
                 #ifdef DEBUG_DLL
                     put_str("Packet: "); print(reconstructed_packet, reconstructed_packet_length);
-                #endif
-                #ifdef DLL_TEST
-                    allocate(received_packet, received_packet_length, reconstructed_packet_length);
-                    memcpy(received_packet, reconstructed_packet, reconstructed_packet_length);
                 #endif
                 // Free memory
                 deallocate(reconstructed_packet, reconstructed_packet_length);
@@ -262,10 +253,6 @@ DLL::DLL() {
     reconstructed_packet = NULL;
     reconstructed_packet_length = 0;
     split_packet_error = false;
-    #ifdef DLL_TEST
-        received_packet = NULL;
-        received_packet_length = 0;
-    #endif
 }
 
 #ifdef DLL_TEST

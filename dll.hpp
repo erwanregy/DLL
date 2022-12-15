@@ -8,6 +8,8 @@
 #define MAX_PACKET_LENGTH 8
 #define CRC_POLYNOMIAL 65521
 
+// class PHY;
+
 struct Frame {
     uint8_t header;
     uint8_t control[2];
@@ -18,11 +20,6 @@ struct Frame {
     uint8_t footer;
     Frame();
 };
-
-#ifdef DLL_TEST
-    void print(Frame);
-    void print(uint8_t* pointer, uint8_t length);
-#endif
 
 class DLL {
 private:
@@ -37,13 +34,15 @@ private:
     bool check_crc();
     bool split_packet_error;
 public:
-#ifdef DLL_TEST
-    uint8_t* received_packet;
-    uint8_t received_packet_length;
-    void send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address, DLL& receiver);
-#else
+    #ifndef DLL_TEST
+        PHY* phy;
+    #endif
+    DLL(NetworkLayer* net);
     void send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address);
-#endif
-    DLL();
     void receive(uint8_t* frame, uint8_t frame_length);
 };
+
+#ifdef DLL_TEST
+    void print(Frame);
+    void print(uint8_t* pointer, uint8_t length);
+#endif

@@ -8,9 +8,7 @@
                 "-D",
                 "WINDOWS",
                 "-g",
-                "${workspaceFolder}/main.cpp",
-                "${workspaceFolder}/dll.cpp",
-                "${workspaceFolder}/mem.cpp",
+                "${workspaceFolder}/*.cpp",
                 "-o",
                 "${workspaceFolder}/dll.exe"
             ],
