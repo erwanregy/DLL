@@ -9,9 +9,6 @@
 #endif
 
 void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address) {
-    #ifdef DEBUG_DLL
-        put_str("TX: \r\n");
-    #endif
     bool extra_frame = packet_length % MAX_PACKET_LENGTH;
     uint8_t num_frames = packet_length/MAX_PACKET_LENGTH + extra_frame;
     #ifdef DLL_TEST
@@ -36,8 +33,8 @@ void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_addre
         frame.checksum[0] = (crc & 0xFF00) >> 8;
         frame.checksum[1] = (crc & 0x00FF);
         byte_stuff(); // allocates memory
-        // PHY.send(stuffed_frame, stuffed_frame_length);
         #ifdef DEBUG_DLL
+            put_str("TX: \r\n");
             print(frame);
             put_str("Stuffed frame: "); print(stuffed_frame, stuffed_frame_length);
         #endif
@@ -46,6 +43,11 @@ void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_addre
             memcpy(sent_frames[frame_num], stuffed_frame, stuffed_frame_length);
         #endif
         deallocate(frame.net_packet, frame.length);
+        #ifndef DLL_TEST
+            phy->send(stuffed_frame, stuffed_frame_length);
+        #else
+            receive(stuffed_frame, stuffed_frame_length);
+        #endif
         deallocate(stuffed_frame, stuffed_frame_length);
     }
 }
