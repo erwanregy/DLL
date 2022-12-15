@@ -11,9 +11,7 @@
 void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address) {
     bool extra_frame = packet_length % MAX_PACKET_LENGTH;
     uint8_t num_frames = packet_length/MAX_PACKET_LENGTH + extra_frame;
-    // #ifdef DLL_TEST
-    //     allocate(sent_frames, sent_frame_lengths, num_sent_frames, num_frames);
-    // #endif
+    allocate(sent_frames, sent_frame_lengths, num_sent_frames, num_frames);
     for (uint8_t frame_num = 0; frame_num < num_frames; frame_num++) {
         uint8_t frame_packet_length;
         if (frame_num == num_frames - 1) {
@@ -39,15 +37,13 @@ void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_addre
             put_str("Stuffed frame: "); print(stuffed_frame, stuffed_frame_length);
         #endif
         deallocate(frame.net_packet, frame.length);
-        // #ifdef DLL_TEST
-        //     allocate(sent_frames[frame_num], sent_frame_lengths[frame_num], stuffed_frame_length);
-        //     memcpy(sent_frames[frame_num], stuffed_frame, stuffed_frame_length);
-        // #endif
         #ifndef DLL_TEST
             phy->send(stuffed_frame, stuffed_frame_length);
         #else
             receive(stuffed_frame, stuffed_frame_length);
         #endif
+        allocate(sent_frames[frame_num], sent_frame_lengths[frame_num], stuffed_frame_length);
+        memcpy(sent_frames[frame_num], stuffed_frame, stuffed_frame_length);
         deallocate(stuffed_frame, stuffed_frame_length);
     }
 }

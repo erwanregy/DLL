@@ -58,8 +58,6 @@ bool dll_test(DLL& dll) {
     dll.send(packet, packet_length, 0xFF);
     // For each sent frame
     for (uint8_t frame_num = 0; frame_num < dll.num_sent_frames; frame_num++) {
-        // Receive frame
-        dll.receive(dll.sent_frames[frame_num], dll.sent_frame_lengths[frame_num]);
         // Deallocate sent frame
         deallocate(dll.sent_frames[frame_num], dll.sent_frame_lengths[frame_num]);
     }
