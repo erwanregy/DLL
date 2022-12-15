@@ -11,9 +11,9 @@
 void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address) {
     bool extra_frame = packet_length % MAX_PACKET_LENGTH;
     uint8_t num_frames = packet_length/MAX_PACKET_LENGTH + extra_frame;
-    #ifdef DLL_TEST
-        allocate(sent_frames, sent_frame_lengths, num_sent_frames, num_frames);
-    #endif
+    // #ifdef DLL_TEST
+    //     allocate(sent_frames, sent_frame_lengths, num_sent_frames, num_frames);
+    // #endif
     for (uint8_t frame_num = 0; frame_num < num_frames; frame_num++) {
         uint8_t frame_packet_length;
         if (frame_num == num_frames - 1) {
@@ -38,11 +38,11 @@ void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_addre
             print(frame);
             put_str("Stuffed frame: "); print(stuffed_frame, stuffed_frame_length);
         #endif
-        #ifdef DLL_TEST
-            allocate(sent_frames[frame_num], sent_frame_lengths[frame_num], stuffed_frame_length);
-            memcpy(sent_frames[frame_num], stuffed_frame, stuffed_frame_length);
-        #endif
         deallocate(frame.net_packet, frame.length);
+        // #ifdef DLL_TEST
+        //     allocate(sent_frames[frame_num], sent_frame_lengths[frame_num], stuffed_frame_length);
+        //     memcpy(sent_frames[frame_num], stuffed_frame, stuffed_frame_length);
+        // #endif
         #ifndef DLL_TEST
             phy->send(stuffed_frame, stuffed_frame_length);
         #else
@@ -56,7 +56,9 @@ void DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
     #ifdef DEBUG_DLL
         put_str("RX: \r\n");
     #endif
-    allocate(stuffed_frame, stuffed_frame_length, received_frame_length);
+    #ifndef DLL_TEST
+        allocate(stuffed_frame, stuffed_frame_length, received_frame_length);
+    #endif
     memcpy(stuffed_frame, received_frame, stuffed_frame_length);
 
     de_byte_stuff(); // allocates memory
@@ -64,7 +66,9 @@ void DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
         put_str("Stuffed frame: "); print(stuffed_frame, stuffed_frame_length);
         print(frame);
     #endif
-    deallocate(stuffed_frame, stuffed_frame_length);
+    #ifndef DLL_TEST
+        deallocate(stuffed_frame, stuffed_frame_length);
+    #endif
 
     // Check that destination MAC address in frame matches local MAC address or is in broadcast mode
     if (frame.addressing[1] != MAC_ADDRESS and frame.addressing[1] != 0xFF) {
@@ -170,7 +174,7 @@ void DLL::byte_stuff() {
             // Insert ESC at i
             message[i] = ESC;
             // XOR escaped byte
-            message[i + 1] ^= 0x20;
+            // message[i + 1] ^= 0x20;
             // Skip escaped (next) byte
             i++;
             // print(message, message_length);
@@ -196,7 +200,7 @@ void DLL::de_byte_stuff() {
             // Shift bytes after i left
             memcpy(&message[i], &message[i + 1], message_length - i);
             // XOR de-escaped byte
-            message[i] ^= 0x20;
+            // message[i] ^= 0x20;
             // Decrement message length
             reallocate(message, message_length, message_length - 1);
         }

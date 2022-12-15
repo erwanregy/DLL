@@ -10,9 +10,9 @@
 #endif
 
 #define NUM_TESTS 100
-#define NUM_UPDATES 100
+#define NUM_UPDATES 10
 
-bool dll_test();
+bool dll_test(DLL&);
 
 int main() {
     #ifndef WINDOWS
@@ -20,8 +20,11 @@ int main() {
         _delay_ms(100); // delay for uart to initialize properly
         put_str("--------------------------------------------------------\r\n");
     #endif
+    // Test DLL
+    DLL dll;
     for (uint16_t i = 0; i < NUM_TESTS; i++) {
-        if (dll_test()) {
+        bool error = dll_test(dll);
+        if (error == true) {
             put_str("Test "); put_uint16(i + 1); put_str(" failed\r\n");
             return 1;
         } else if ((i + 1) % (NUM_TESTS/NUM_UPDATES) == 0) {
@@ -33,8 +36,7 @@ int main() {
     }
 }
 
-bool dll_test() {
-    DLL dll;
+bool dll_test(DLL& dll) {
     uint8_t packet_length = rand() % 24 + 1;
     // uint8_t packet_length = 24;
     // uint8_t packet_length = rand() % 255 + 1;
@@ -42,9 +44,10 @@ bool dll_test() {
     uint8_t packet[packet_length];
     // Initialise packet to send
     for (uint16_t byte_num = 0; byte_num < packet_length; byte_num++) {
-        // packet[byte_num] = rand() % 0x100;
+        packet[byte_num] = rand() % 0x100;
         // packet[byte_num] = rand() % 10 + 0x70;
-        packet[byte_num] = rand() % 2 + FLAG;
+        // packet[byte_num] = rand() % 2 + FLAG;
+        // packet[byte_num] = FLAG;
         // packet[byte_num] = rand() % (FLAG - 1) + 1;
         // packet[byte_num] = byte_num;
     }
