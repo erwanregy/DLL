@@ -1,4 +1,5 @@
 #include "uart.h"
+#include "dll.hpp"
 
 void init_uart0(void) {
 	/* Configure 9600 baud , 8-bit , no parity and one stop bit */
@@ -28,6 +29,15 @@ void put_str(const char* str) {
 
 void put_hex(uint8_t byte) {
 	put_str("0x");
+	#ifdef PRINT_ESC_FLAG
+		if (byte == FLAG) {
+			put_str("FLAG");
+			return;
+		} else if (byte == ESC) {
+			put_str(" ESC");
+			return;
+		}
+	#endif
 	uint8_t nibble[2];
 	nibble[0] = (byte & 0xF0) >> 4;
 	nibble[1] = (byte & 0x0F);

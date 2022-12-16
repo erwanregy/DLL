@@ -3,7 +3,7 @@
 #include "mem.hpp"
 #include "config.hpp"
 
-#ifdef DEBUG_MEM
+#ifdef DEBUG_MEM_ELABORATE
     #define allocate(x, ...) put_str(#x); put_str(": "); allocate(x, ##__VA_ARGS__)
     #define reallocate(x, ...) put_str(#x); put_str(": "); reallocate(x,##__VA_ARGS__)
     #define deallocate(x, ...) put_str(#x); put_str(": "); deallocate(x, ##__VA_ARGS__)
@@ -32,27 +32,26 @@ int main() {
                 put_str("All ");
             }
             put_uint16(i + 1); put_str(" tests passed\r\n");
+            #ifdef DEBUG_DLL_TEST
+                put_str("\r\n");
+            #endif
         }
     }
 }
 
 bool dll_test(DLL& dll) {
-    uint8_t packet_length = rand() % 24 + 1;
-    // uint8_t packet_length = 24;
-    // uint8_t packet_length = rand() % 255 + 1;
-    // uint8_t packet_length = 12;
+    uint8_t packet_length = rand() % 24 + 1; // 1-24 bytes
+    // uint8_t packet_length = rand() % 255 + 1; // 1-255 bytes
     uint8_t packet[packet_length];
     // Initialise packet to send
     for (uint16_t byte_num = 0; byte_num < packet_length; byte_num++) {
-        packet[byte_num] = rand() % 0x100;
-        // packet[byte_num] = rand() % 10 + 0x70;
-        // packet[byte_num] = rand() % 2 + FLAG;
-        // packet[byte_num] = FLAG;
-        // packet[byte_num] = rand() % (FLAG - 1) + 1;
-        // packet[byte_num] = byte_num;
+        // packet[byte_num] = rand() % 0x100; // All possible values
+        packet[byte_num] = rand() % 0x10 + 0x70; // 0x70 to 0x7E
+        // packet[byte_num] = rand() % 2 + FLAG; // FLAG and ESC
+        // packet[byte_num] = byte_num; // Sequential numbering
     }
-    #ifdef DEBUG_DLL
-        print(packet, packet_length);
+    #ifdef DEBUG_DLL_TEST
+        put_str("Sending packet:  "); print(packet, packet_length);
     #endif
     // Send packet
     dll.send(packet, packet_length, 0xFF);
@@ -61,6 +60,12 @@ bool dll_test(DLL& dll) {
         // Deallocate sent frame
         deallocate(dll.sent_frames[frame_num], dll.sent_frame_lengths[frame_num]);
     }
+    #ifdef DEBUG_DLL_TEST
+        put_str("Received packet: "); print(dll.received_packet, dll.received_packet_length);
+        #ifdef DEBUG_DLL
+            put_str("Sent packet:     "); print(packet, packet_length);
+        #endif
+    #endif
     // Deallocate sent frames buffer
     deallocate(dll.sent_frames, dll.sent_frame_lengths, dll.num_sent_frames);
     // Check received packet length matches
@@ -79,11 +84,14 @@ bool dll_test(DLL& dll) {
             return 1;
         }
     }
+    #ifdef DEBUG_DLL
+        put_str("Sent and received packets match\r\n\r\n");
+    #endif
     // Deallocate received packet
     deallocate(dll.received_packet, dll.received_packet_length);
     // Check for no memory leaks
     if (mem_leak()) {
-        put_str("Error: Memory leak!\r\n");
+        put_str("Error: Memory leak\r\n");
         print_mem_use();
         return 1;
     }

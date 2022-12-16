@@ -19,11 +19,6 @@ struct Frame {
     Frame();
 };
 
-#ifdef DLL_TEST
-    void print(Frame);
-    void print(uint8_t* pointer, uint8_t length);
-#endif
-
 class DLL {
 #ifdef DLL_TEST
     public:
@@ -52,3 +47,6 @@ public:
     void send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address);
     void receive(uint8_t* frame, uint8_t frame_length);
 };
+
+void print(Frame);
+void print(uint8_t* pointer, uint8_t length);

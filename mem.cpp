@@ -29,7 +29,7 @@ void allocate(uint8_t*& pointer, uint8_t& length, uint8_t new_length) {
     }
     uint8_t num_bytes = sizeof(*pointer) * new_length;
     mem_use += num_bytes;
-    #ifdef DEBUG_MEM
+    #ifdef DEBUG_MEM_ELABORATE
         put_str("Allocated "); put_uint8(num_bytes); put_str(" bytes (+"); put_uint8(num_bytes); put_str(")\r\n");
         print_mem_use();
     #endif
@@ -46,7 +46,7 @@ void allocate(uint8_t**& pointer, uint8_t*& lengths, uint8_t& length, uint8_t ne
     }
     uint8_t num_bytes = sizeof(*pointer) * new_length;
     mem_use += num_bytes;
-    #ifdef DEBUG_MEM
+    #ifdef DEBUG_MEM_ELABORATE
         put_str("Allocated "); put_uint8(num_bytes); put_str(" bytes (+"); put_uint8(num_bytes); put_str(")\r\n");
         print_mem_use();
     #endif
@@ -66,7 +66,7 @@ void reallocate(uint8_t*& pointer, uint8_t& length, uint8_t new_length) {
     }
     int8_t num_bytes = sizeof(*pointer) * (new_length - length);
     mem_use += num_bytes;
-    #ifdef DEBUG_MEM
+    #ifdef DEBUG_MEM_ELABORATE
         put_str("Reallocated from "); put_uint8(sizeof(*pointer) * length); put_str(" to "); put_uint8(sizeof(*pointer) * new_length); put_str(" bytes (");
         if (num_bytes & (1 << 7)) {
             put_ch('-');
@@ -85,9 +85,15 @@ void reallocate(uint8_t*& pointer, uint8_t& length, uint8_t new_length) {
 //     memcpy(temp, pointer_pointer, new_length);
 //     pointer_pointer = (uint8_t**) malloc(sizeof(*pointer_pointer) * new_length);
 //     memcpy(pointer_pointer, temp, new_length);
+//     if (pointer_pointer == NULL) {
+//         #ifdef DEBUG_MEM
+//             put_str("Failed to reallocate\r\n");
+//         #endif
+//         return;
+//     }
 //     int8_t num_bytes = sizeof(*pointer_pointer) * (new_length - length);
 //     mem_use += num_bytes;
-//     #ifdef DEBUG_MEM
+//     #ifdef DEBUG_MEM_ELABORATE
 //         put_str("Reallocated from "); put_uint8(sizeof(*pointer_pointer) * length); put_str(" to "); put_uint8(sizeof(*pointer_pointer) * new_length); put_str(" bytes (");
 //         if (num_bytes & (1 << 7)) {
 //             put_ch('-');
@@ -113,7 +119,7 @@ void deallocate(uint8_t*& pointer, uint8_t& length) {
     free(pointer);
     uint8_t num_bytes = sizeof(*pointer) * length;
     mem_use -= num_bytes;
-    #ifdef DEBUG_MEM
+    #ifdef DEBUG_MEM_ELABORATE
         put_str("Deallocated "); put_uint8(num_bytes); put_str(" bytes (-"); put_uint8(num_bytes); put_str(")\r\n");
         print_mem_use();
     #endif
@@ -132,7 +138,7 @@ void deallocate(uint8_t**& pointer_pointer, uint8_t*& length_pointer, uint8_t& l
     free(pointer_pointer);
     uint8_t num_bytes = sizeof(*pointer_pointer) * length;
     mem_use -= num_bytes;
-    #ifdef DEBUG_MEM
+    #ifdef DEBUG_MEM_ELABORATE
         put_str("Deallocated "); put_uint8(num_bytes); put_str(" bytes (-"); put_uint8(num_bytes); put_str(")\r\n");
         print_mem_use();
     #endif
