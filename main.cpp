@@ -10,7 +10,7 @@
 #endif
 
 #define NUM_TESTS 100
-#define NUM_UPDATES 10
+#define NUM_UPDATES NUM_TESTS
 
 bool dll_test(DLL&);
 
@@ -61,26 +61,24 @@ bool dll_test(DLL& dll) {
         deallocate(dll.sent_frames[frame_num], dll.sent_frame_lengths[frame_num]);
     }
     #ifdef DEBUG_DLL_TEST
-        put_str("Received packet: "); print(dll.received_packet, dll.received_packet_length);
+        put_str("\r\nReceived packet: "); print(dll.received_packet, dll.received_packet_length);
         #ifdef DEBUG_DLL
-            put_str("Sent packet:     "); print(packet, packet_length);
+            put_str("Sent     packet: "); print(packet, packet_length);
         #endif
     #endif
     // Deallocate sent frames buffer
     deallocate(dll.sent_frames, dll.sent_frame_lengths, dll.num_sent_frames);
     // Check received packet length matches
     if (dll.received_packet_length != packet_length) {
-        put_str("Error: lengths do not match\r\n");
-        put_str("sent_packet_length = "); put_uint8(packet_length);
-        put_str(", received_packet_length = "); put_uint8(dll.received_packet_length); put_str("\r\n");
+        put_str("Error: Packet lengths do not match\r\n");
+        put_str("Sent     packet length = "); put_uint8(packet_length); put_str("\r\n");
+        put_str("Received packet length = "); put_uint8(dll.received_packet_length); put_str("\r\n");
         return 1;
     }
     // Check received packet (data) matches
     for (uint8_t byte_num = 0; byte_num < packet_length; byte_num++) {
         if (dll.received_packet[byte_num] != packet[byte_num]) {
-            put_str("Error: Packets do not match\r\n");
-            put_str("sent_packet     = "); print(packet, packet_length);
-            put_str("received_packet = "); print(dll.received_packet, dll.received_packet_length);
+            put_str("Error: Sent and received packets do not match\r\n");
             return 1;
         }
     }
