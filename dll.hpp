@@ -42,5 +42,7 @@ public:
     void receive(uint8_t* frame, uint8_t frame_length);
 };
 
-void print(Frame);
-void print(uint8_t* pointer, uint8_t length);
+#ifdef DLL_TEST
+    void print(Frame);
+    void print(uint8_t* pointer, uint8_t length);
+#endif
