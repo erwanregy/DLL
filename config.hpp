@@ -3,11 +3,11 @@
 
 // VIRTUAL DLL TEST
 #define DLL_TEST
-// #define DEBUG_DLL_TEST
+#define DEBUG_DLL_TEST
 
 // DLL DEBUGGING
-// #define DEBUG_DLL
-// #define DEBUG_DLL_FRAMES
+#define DEBUG_DLL
+#define DEBUG_DLL_FRAMES
 // #define DEBUG_DLL_STEPS
 
 // PRINT ESC AND FLAGS

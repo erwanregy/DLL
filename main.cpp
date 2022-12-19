@@ -9,7 +9,7 @@
     #define deallocate(x, ...) put_str(#x); put_str(": "); deallocate(x, ##__VA_ARGS__)
 #endif
 
-#define NUM_TESTS 100
+#define NUM_TESTS 1
 #define NUM_UPDATES NUM_TESTS
 
 bool dll_test(DLL&);
@@ -45,8 +45,8 @@ bool dll_test(DLL& dll) {
     uint8_t packet[packet_length];
     // Initialise packet to send
     for (uint16_t byte_num = 0; byte_num < packet_length; byte_num++) {
-        // packet[byte_num] = rand() % 0x100; // All possible values
-        packet[byte_num] = rand() % 0x10 + 0x70; // 0x70 to 0x7E
+        packet[byte_num] = rand() % 0x100; // All possible values
+        // packet[byte_num] = rand() % 0x10 + 0x70; // 0x70 to 0x7E
         // packet[byte_num] = rand() % 2 + FLAG; // FLAG and ESC
         // packet[byte_num] = byte_num; // Sequential numbering
     }
