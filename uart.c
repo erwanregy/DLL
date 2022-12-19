@@ -28,7 +28,6 @@ void put_str(const char* str) {
 }
 
 void put_hex(uint8_t byte) {
-	put_str("0x");
 	#ifdef PRINT_ESC_FLAG
 		if (byte == FLAG) {
 			put_str("FLAG");
@@ -38,6 +37,7 @@ void put_hex(uint8_t byte) {
 			return;
 		}
 	#endif
+	put_str("0x");
 	uint8_t nibble[2];
 	nibble[0] = (byte & 0xF0) >> 4;
 	nibble[1] = (byte & 0x0F);
