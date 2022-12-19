@@ -1,4 +1,4 @@
-SRCS = main.cpp dll.cpp mem.cpp ../UART/uart.c
+SRCS = main.cpp dll.cpp mem.cpp uart.c
 
 build: $(SRC)
 	avr-g++ -mmcu=atmega644p -DF_CPU=12000000 -Wall -Os $(SRCS) -o dll.elf
