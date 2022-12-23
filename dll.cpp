@@ -10,25 +10,28 @@
 
 void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address) {
     bool extra_frame = packet_length % MAX_PACKET_LENGTH;
-    uint8_t num_frames = packet_length/MAX_PACKET_LENGTH + extra_frame;
-    // allocate(sent_frames, sent_frame_lengths, num_sent_frames, num_frames);
-    uint8_t* sent_frames[num_frames];
-    uint8_t sent_frame_lengths[num_frames];
-    for (uint8_t frame_num = 0; frame_num < num_frames; frame_num++) {
+    uint8_t last_frame_num = packet_length/MAX_PACKET_LENGTH + extra_frame - 1;
+    for (uint8_t frame_num = 0; frame_num <= last_frame_num; frame_num++) {
         #ifdef DEBUG_DLL
             put_str("\r\nSENDING FRAME\r\n");
         #endif
         uint8_t frame_packet_length;
-        if (frame_num == num_frames - 1) {
-            frame_packet_length = packet_length - (num_frames - 1)*MAX_PACKET_LENGTH;
+        if (frame_num == last_frame_num) {
+            frame_packet_length = packet_length - last_frame_num*MAX_PACKET_LENGTH;
         } else {
             frame_packet_length = MAX_PACKET_LENGTH;
         }
         frame.control[0] = frame_num;
-        frame.control[1] = num_frames - 1;
+        frame.control[1] = last_frame_num;
         #ifdef DEBUG_DLL_STEPS
-            if (num_frames > 1) {
-                put_str("Frame sending as part of split packet "); put_uint8(frame.control[0]+1); put_ch('/'); put_uint8(frame.control[1]+1); put_str("\r\n"); 
+            if (last_frame_num > 0) {
+                put_str("Frame sending as ");
+                if (frame_num < last_frame_num) {
+                    put_str("part of");
+                } else {
+                    put_str("final");
+                }
+                put_str(" split packet "); put_uint8(frame.control[0]+1); put_ch('/'); put_uint8(frame.control[1]+1); put_str("\r\n"); 
             }
         #endif
         frame.addressing[0] = MAC_ADDRESS;
@@ -46,7 +49,7 @@ void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_addre
         #ifdef DEBUG_DLL_STEPS
             put_str("NET packet length: "); put_uint8(frame.length); put_str("\r\n");
             put_str("NET packet: "); print(frame.net_packet, frame.length);
-            put_str("Calculating CRC\r\n");
+            put_str("Calculating CRC...\r\n");
         #endif
         uint16_t crc = calculate_crc();
         frame.checksum[0] = (crc & 0xFF00) >> 8;
@@ -59,11 +62,11 @@ void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_addre
             print(frame);
         #endif
         #ifdef DEBUG_DLL_STEPS
-            put_str("Stuffing bytes\r\n");
+            put_str("Stuffing bytes...\r\n");
         #endif
         byte_stuff(); // allocates memory
         #ifdef DEBUG_DLL_FRAMES
-            put_str("Stuffed frame: "); print(stuffed_frame, stuffed_frame_length);
+            put_str("Stuffed frame:\r\n"); print(stuffed_frame, stuffed_frame_length);
         #endif
         deallocate(frame.net_packet, frame.length);
         #ifndef DLL_TEST
@@ -73,14 +76,10 @@ void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_addre
             phy->send(stuffed_frame, stuffed_frame_length);
         #else
             #ifdef DEBUG_DLL
-                put_str("Passing frame to virtual DLL receiver\r\n");
+                put_str("Passing frame to virtual DLL\r\n");
             #endif
             receive(stuffed_frame, stuffed_frame_length);
         #endif
-        // Allocate memory for the sent frame
-        allocate(sent_frames[frame_num], sent_frame_lengths[frame_num], stuffed_frame_length);
-        // Copy the stuffed frame into the sent frame
-        memcpy(sent_frames[frame_num], stuffed_frame, stuffed_frame_length);
         // Deallocate the stuffed frame
         deallocate(stuffed_frame, stuffed_frame_length);
     }
@@ -100,7 +99,7 @@ void DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
         print(stuffed_frame, stuffed_frame_length);
     #endif
     #ifdef DEBUG_DLL_STEPS
-        put_str("Destuffing bytes\r\n");
+        put_str("Destuffing bytes...\r\n");
     #endif
     de_byte_stuff(); // allocates memory
     #ifdef DEBUG_DLL_FRAMES
@@ -110,7 +109,7 @@ void DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
     deallocate(stuffed_frame, stuffed_frame_length);
 
     #ifdef DEBUG_DLL_STEPS
-        put_str("Checking destination address\r\n");
+        put_str("Checking destination address...\r\n");
         put_str("Destination address: "); put_hex(frame.addressing[1]); put_str(", ");
         put_str("Device address: "); put_hex(MAC_ADDRESS); put_str("\r\n");
     #endif
@@ -141,7 +140,7 @@ void DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
     }
     
     #ifdef DEBUG_DLL_STEPS
-        put_str("Checking CRC\r\n"); 
+        put_str("Checking CRC...\r\n"); 
     #endif
     // Error in current frame handling
     bool frame_error = check_crc();
@@ -200,7 +199,7 @@ void DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
             memcpy(reconstructed_packet, frame.net_packet, reconstructed_packet_length);
             #ifdef DEBUG_DLL_STEPS
                 put_str("Split packet: "); print(frame.net_packet, frame.length);
-                put_str("Storing split packet\r\n"); 
+                put_str("Storing split packet...\r\n"); 
             #endif
             #ifdef DEBUG_DLL
                 put_str("Partially reconstructed packet: "); print(reconstructed_packet, reconstructed_packet_length);
@@ -214,7 +213,7 @@ void DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
             // Last split packet
             #ifdef DEBUG_DLL_STEPS
                 put_str("Split packet: "); print(frame.net_packet, frame.length);
-                put_str("Storing split packet into reconstructed packet\r\n");
+                put_str("Storing split packet...\r\n");
             #endif
             #ifdef DEBUG_DLL
                 if (frame.control[0] < frame.control[1]) {
@@ -227,7 +226,7 @@ void DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
             if (frame.control[0] == frame.control[1]) {
                 #ifndef DLL_TEST
                     #ifdef DEBUG_DLL
-                        put_str("Passing packet to NET\r\n");
+                        put_str("Passing packet to NET...\r\n");
                     #endif
                     net->receive(reconstructed_packet, reconstructed_packet_length, frame.addressing[0]);
                 #else
@@ -268,11 +267,11 @@ void DLL::byte_stuff() {
                 print(message, message_length);
                 put_str("Escaping ");
                 if (message[i] == FLAG) {
-                    put_str("escape");
-                } else {
                     put_str("flag");
+                } else {
+                    put_str("escape");
                 }
-                put_str(" byte detected at byte "); put_uint8(i+1); put_str("\r\n");
+                put_str(" byte detected at byte "); put_uint8(i+1); put_str("...\r\n");
             #endif
             // Increment length of message
             reallocate(message, message_length, message_length + 1);
@@ -312,7 +311,7 @@ void DLL::de_byte_stuff() {
         if (message[i] == ESC) {
             #ifdef DEBUG_DLL_STEPS
                 print(message, message_length);
-                put_str("Removing escape byte detected at byte "); put_uint8(i+1); put_str("\r\n"); 
+                put_str("Removing escape byte detected at byte "); put_uint8(i+1); put_str("...\r\n"); 
             #endif
             // Shift bytes after i left
             memcpy(&message[i], &message[i + 1], message_length - i);
@@ -374,13 +373,15 @@ uint16_t DLL::calculate_crc() {
 }
 
 bool DLL::check_crc() {
-    uint16_t received_crc = (frame.checksum[0] << 8) + frame.checksum[1];
-    uint16_t expected_crc = calculate_crc();
+    uint16_t crc = calculate_crc();
+    uint8_t expected_crc[2];
+    expected_crc[0] = (crc & 0xFF00) >> 8;
+    expected_crc[1] = (crc & 0x00FF);
     #ifdef DEBUG_DLL_STEPS
-        put_str("Received CRC: "); put_uint16(received_crc); put_str(", ");
-        put_str("Expected CRC: "); put_uint16(expected_crc); put_str("\r\n");
+        put_str("Expected CRC: "); put_hex(expected_crc[0]); put_ch(' '); put_hex(expected_crc[1]); put_str("\r\n");
+        put_str("Received CRC: "); put_hex(frame.checksum[0]); put_ch(' '); put_hex(frame.checksum[1]); put_str("\r\n");
     #endif
-    if (received_crc != expected_crc) {
+    if (frame.checksum[0] != expected_crc[0] or frame.checksum[1] != expected_crc[1]) {
         return 1;
     } else {
         return 0;
@@ -400,9 +401,6 @@ DLL::DLL() {
     reconstructed_packet = NULL;
     reconstructed_packet_length = 0;
     #ifdef DLL_TEST
-        sent_frames = NULL;
-        sent_frame_lengths = NULL;
-        num_sent_frames = 0;
         received_packet = NULL;
         received_packet_length = 0;
     #endif

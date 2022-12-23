@@ -6,9 +6,9 @@
 #define DEBUG_DLL_TEST
 
 // DLL DEBUGGING
-#define DEBUG_DLL
-#define DEBUG_DLL_FRAMES
-// #define DEBUG_DLL_STEPS
+// #define DEBUG_DLL
+// #define DEBUG_DLL_FRAMES
+#define DEBUG_DLL_STEPS
 
 // PRINT ESC AND FLAGS
 #define PRINT_ESC_FLAG
@@ -41,12 +41,12 @@
 #endif
 
 // Define DEBUG_DLL if DEBUG_DLL_FRAMES or DEBUG_DLL_STEPS is defined
-#ifdef DEBUG_DLL_FRAMES
-    #ifndef DEBUG_DLL
-        #define DEBUG_DLL
+#ifdef DEBUG_DLL_STEPS
+    #ifndef DEBUG_DLL_FRAMES
+        #define DEBUG_DLL_FRAMES
     #endif
 #endif
-#ifdef DEBUG_DLL_STEPS
+#ifdef DEBUG_DLL_FRAMES
     #ifndef DEBUG_DLL
         #define DEBUG_DLL
     #endif

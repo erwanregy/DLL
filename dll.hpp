@@ -36,9 +36,6 @@ class DLL {
     bool check_crc();
     bool split_packet_error;
     #ifdef DLL_TEST
-        uint8_t** sent_frames;
-        uint8_t* sent_frame_lengths;
-        uint8_t num_sent_frames;
         uint8_t* received_packet;
         uint8_t received_packet_length;
     #endif
