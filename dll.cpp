@@ -499,9 +499,9 @@ void print(Frame frame) {
     put_str("------------+--------+\r\n");
 }
 
-void print(uint8_t* ptr, uint8_t length) {
-    for (uint8_t i = 0; i < length; i++) {
-        put_hex(ptr[i]);
+void print(uint8_t* buffer, uint8_t buffer_length) {
+    for (uint8_t byte_num = 0; byte_num < buffer_length; byte_num++) {
+        put_hex(buffer[byte_num]);
         put_ch(' ');
     }
     put_str("\r\n");

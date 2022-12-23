@@ -46,4 +46,4 @@ public:
 };
 
 void print(Frame);
-void print(uint8_t* pointer, uint8_t length);
+void print(uint8_t* buffer, uint8_t buffer_length);

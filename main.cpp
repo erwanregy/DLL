@@ -70,10 +70,10 @@ bool dll_test(DLL& dll) {
         put_str("Received packet length = "); put_uint8(dll.received_packet_length); put_str("\r\n");
         return 1;
     }
-    // Check received packet data matches
+    // Check received packet contents matches
     for (uint8_t byte_num = 0; byte_num < packet_length; byte_num++) {
         if (dll.received_packet[byte_num] != packet[byte_num]) {
-            put_str("Error: Packet data do not match\r\n");
+            put_str("Error: Packet contents do not match\r\n");
             return 1;
         }
     }
