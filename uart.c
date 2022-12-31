@@ -1,29 +1,50 @@
 #include "uart.h"
 #include "dll.hpp"
 
-void init_uart0(void) {
+void init_uart0() {
 	/* Configure 9600 baud , 8-bit , no parity and one stop bit */
 	const int baud_rate = 9600;
 	UBRR0H = (F_CPU/(baud_rate*16L)-1) >> 8;
 	UBRR0L = (F_CPU/(baud_rate*16L)-1);
 	UCSR0B = _BV(RXEN0) | _BV(TXEN0);
 	UCSR0C = _BV(UCSZ00) | _BV(UCSZ01);
+	_delay_ms(100); // delay for uart to initialize properly
 }
 
-char get_ch(void) {
+void init_uart1() {
+	/* Configure 9600 baud , 8-bit , no parity and one stop bit */
+	const int baud_rate = 9600;
+	UBRR1H = (F_CPU/(baud_rate*16L)-1) >> 8;
+	UBRR1L = (F_CPU/(baud_rate*16L)-1);
+	UCSR1B = _BV(RXEN1) | _BV(TXEN1);
+	UCSR1C = _BV(UCSZ10) | _BV(UCSZ11);
+	_delay_ms(100); // delay for uart to initialize properly
+}
+
+uint8_t receive_byte() {
+	while (!(UCSR1A & _BV(RXC1)));
+	return UDR1;
+}
+
+void send_byte(uint8_t byte) {
+	while (!(UCSR1A & _BV(UDRE1)));
+	UDR1 = byte;
+}
+
+char get_ch() {
 	while (!(UCSR0A & _BV(RXC0)));
 	return UDR0;
 }
 
-void put_ch(char ch) {
+void put_ch(char character) {
 	while (!(UCSR0A & _BV(UDRE0)));
-	UDR0 = ch;
+	UDR0 = character;
 }
 
-void put_str(const char* str) {
+void put_str(const char* string) {
 	int i;
-	for (i = 0; str[i]; i++) {
-		put_ch(str[i]);
+	for (i = 0; string[i]; i++) {
+		put_ch(string[i]);
 	}
 }
 

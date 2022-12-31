@@ -26,7 +26,7 @@
                 "UNICODE",
                 "_UNICODE"
             ],
-            "compilerPath": "C:\\WinAVR-20100110\\bin\\avr-gcc.exe",
+            "compilerPath": "C:\\WinAVR-20100110\\bin\\avr-g++.exe",
             "cStandard": "c99",
             "cppStandard": "c++98",
             "intelliSenseMode": "gcc-x64",

@@ -1,7 +1,5 @@
-SRCS = main.cpp dll.cpp mem.cpp uart.c
-
-build: $(SRC)
-	avr-g++ -mmcu=atmega644p -DF_CPU=12000000 -Wall -Os $(SRCS) -o dll.elf
+build: *.cpp *.c
+	avr-g++ -mmcu=atmega644p -DF_CPU=12000000 -Wall -Os $^ -o dll.elf
 	avr-objcopy -O ihex dll.elf dll.hex
 	
 flash: build
