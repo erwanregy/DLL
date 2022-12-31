@@ -1,8 +1,6 @@
 #pragma once
 #include <stdint.h>
 
-static uint16_t mem_use;
-
 bool mem_leak();
 void print_mem_use();
 

@@ -23,24 +23,32 @@ class NET;
 class PHY;
 
 class DLL {
-private:
+#ifdef DLL_TEST
+    public:
+#else
+    private:
+#endif
     Frame frame;
-    // Sending
-    void byte_stuff();
-    uint16_t calculate_crc();
     uint8_t* stuffed_frame;
     uint8_t stuffed_frame_length;
-    PHY* phy;
-    // Receiving
-    void de_byte_stuff();
-    bool check_crc();
-    bool split_packet_error;
     uint8_t* reconstructed_packet;
     uint8_t reconstructed_packet_length;
-    NET* net;
+    void byte_stuff();
+    void de_byte_stuff();
+    uint16_t calculate_crc();
+    bool check_crc();
+    bool split_packet_error;
 public:
+    #ifdef DLL_TEST
+        uint8_t* received_packet;
+        uint8_t received_packet_length;
+    #else
+        NET* net;
+    #endif
+    #ifndef VIRTUAL_PHY
+        PHY* phy;
+    #endif
     DLL();
-    void connect_layers(NET* net, PHY* phy);
     void send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address);
     void receive(uint8_t* frame, uint8_t frame_length);
 };

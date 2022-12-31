@@ -1,6 +1,5 @@
 #include "dll.hpp"
 #include "mem.hpp"
-#include "phy.hpp"
 #include <string.h>
 
 #ifdef DEBUG_MEM_ELABORATE
@@ -10,65 +9,239 @@
 #endif
 
 void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address) {
-    // For each split packet
-    for (split_packet_number = 0; split_packet_number <= last_split_packet_number; split_packet_number++) {
-        // Set control bytes
-        frame.control[0] = split_packet_number;
-        frame.control[1] = last_split_packet_number;
-        // Set device and destination MAC addresses
+    bool extra_frame = packet_length % MAX_PACKET_LENGTH;
+    uint8_t last_frame_num = packet_length/MAX_PACKET_LENGTH + extra_frame - 1;
+    for (uint8_t frame_num = 0; frame_num <= last_frame_num; frame_num++) {
+        #ifdef DEBUG_DLL
+            put_str("\r\nSENDING FRAME\r\n");
+        #endif
+        uint8_t frame_packet_length;
+        if (frame_num == last_frame_num) {
+            frame_packet_length = packet_length - last_frame_num*MAX_PACKET_LENGTH;
+        } else {
+            frame_packet_length = MAX_PACKET_LENGTH;
+        }
+        frame.control[0] = frame_num;
+        frame.control[1] = last_frame_num;
+        #ifdef DEBUG_DLL_STEPS
+            if (last_frame_num > 0) {
+                put_str("Frame sending as ");
+                if (frame_num < last_frame_num) {
+                    put_str("part of");
+                } else {
+                    put_str("final");
+                }
+                put_str(" split packet "); put_uint8(frame.control[0]+1); put_ch('/'); put_uint8(frame.control[1]+1); put_str("\r\n"); 
+            }
+        #endif
         frame.addressing[0] = MAC_ADDRESS;
+        #ifdef DEBUG_DLL_STEPS
+            put_str("Device address: "); put_hex(frame.addressing[0]); put_str("\r\n");
+        #endif
         frame.addressing[1] = destination_address;
-        // Set NET packet length
-        frame.length = packet_length;
-        // Insert NET packet
-        frame.net_packet = packet;
-        // Calculate CRC
-        frame.checksum = calculate_crc();
-        // Byte-stuff frame
-        stuffed_frame = byte_stuff(frame);
-        // Send byte-stuffed frame to PHY
-        phy->send(stuffed_frame, stuffed_frame_length);
+        #ifdef DEBUG_DLL_STEPS
+            put_str("Destination address: "); put_hex(frame.addressing[1]); put_str("\r\n");
+        #endif
+        allocate(frame.net_packet, frame.length, frame_packet_length);
+        for (uint8_t i = 0; i < frame_packet_length; i++) {
+            frame.net_packet[i] = packet[frame_num*MAX_PACKET_LENGTH + i]; 
+        }
+        #ifdef DEBUG_DLL_STEPS
+            put_str("NET packet length: "); put_uint8(frame.length); put_str("\r\n");
+            put_str("NET packet: "); print(frame.net_packet, frame.length);
+            put_str("Calculating CRC...\r\n");
+        #endif
+        uint16_t crc = calculate_crc();
+        frame.checksum[0] = (crc & 0xFF00) >> 8;
+        frame.checksum[1] = (crc & 0x00FF);
+        #ifdef DEBUG_DLL_STEPS
+            put_str("CRC: "); put_hex(frame.checksum[0]); put_ch(' '); put_hex(frame.checksum[1]); put_str("\r\n");
+        #endif
+        #ifdef DEBUG_DLL_FRAMES
+            put_str("Constructed frame:\r\n");
+            print(frame);
+        #endif
+        #ifdef DEBUG_DLL_STEPS
+            put_str("Stuffing bytes...\r\n");
+        #endif
+        byte_stuff(); // allocates memory
+        #ifdef DEBUG_DLL_FRAMES
+            put_str("Stuffed frame:\r\n"); print(stuffed_frame, stuffed_frame_length);
+        #endif
+        deallocate(frame.net_packet, frame.length);
+        #ifndef DLL_TEST
+            #ifdef DEBUG_DLL
+                put_str("Passing frame to PHY\r\n");
+            #endif
+            phy->send(stuffed_frame, stuffed_frame_length);
+        #else
+            #ifdef DEBUG_DLL
+                put_str("Passing frame to virtual DLL\r\n");
+            #endif
+            receive(stuffed_frame, stuffed_frame_length);
+        #endif
+        // Deallocate the stuffed frame
+        deallocate(stuffed_frame, stuffed_frame_length);
     }
 }
 
 void DLL::receive(uint8_t* received_frame, uint8_t received_frame_length) {
-    // De-byte-stuff received frame
-    frame = de_byte_stuff(received_frame);
-    // Check that destination address matches device address or is in broadcast mode
+    #ifdef DEBUG_DLL
+        put_str("\r\nRECEIVING FRAME\r\n");
+    #endif
+    #ifndef DLL_TEST
+        allocate(stuffed_frame, stuffed_frame_length, received_frame_length);
+    #endif
+    memcpy(stuffed_frame, received_frame, stuffed_frame_length);
+
+    #ifdef DEBUG_DLL_FRAMES
+        put_str("Stuffed frame:\r\n");
+        print(stuffed_frame, stuffed_frame_length);
+    #endif
+    #ifdef DEBUG_DLL_STEPS
+        put_str("Destuffing bytes...\r\n");
+    #endif
+    de_byte_stuff(); // allocates memory
+    #ifdef DEBUG_DLL_FRAMES
+        put_str("Received frame:\r\n");
+        print(frame);
+    #endif
+    deallocate(stuffed_frame, stuffed_frame_length);
+
+    #ifdef DEBUG_DLL_STEPS
+        put_str("Checking destination address...\r\n");
+        put_str("Destination address: "); put_hex(frame.addressing[1]); put_str(", ");
+        put_str("Device address: "); put_hex(MAC_ADDRESS); put_str("\r\n");
+    #endif
+    // Check that destination MAC address in frame matches local MAC address or is in broadcast mode
     if (frame.addressing[1] != MAC_ADDRESS and frame.addressing[1] != 0xFF) {
+        #ifdef DEBUG_DLL_STEPS
+            put_str("Destination address check failed\r\n"); 
+        #endif
+        #ifdef DEBUG_DLL
+            put_str("Dropping frame: Destination address does not match devices\r\n");
+        #endif
         return;
     }
-    // Check for error in previous split packets
-    if (split_packet_error == true and frame.control[1] > 0) {
+    #ifdef DEBUG_DLL_STEPS
+        put_str("Destination address check passed\r\n"); 
+    #endif
+    // Error in split packet handling
+    if (split_packet_error == true) {
         // Reset error flag to 0 on last split packet
         if (frame.control[0] == frame.control[1]) {
             split_packet_error = false;
         }
+        #ifdef DEBUG_DLL
+            put_str("Dropping frame: Error detected in previous split packet frame\r\n");
+        #endif
         // Drop all split packet frames
         return;
     }
-    // Check for error in frame
-    bool error = check_crc();
-    if (error == true) {
-        if (frame.control[1] > 0) {
+    
+    #ifdef DEBUG_DLL_STEPS
+        put_str("Checking CRC...\r\n"); 
+    #endif
+    // Error in current frame handling
+    bool frame_error = check_crc();
+    if (frame_error == true) {
+        #ifdef DEBUG_DLL_STEPS
+            put_str("CRC check failed\r\n"); 
+        #endif
+        if (frame.control[1] != 0) {
+            #ifdef DEBUG_DLL
+                put_str("Dropping frame: Error detected in split packet frame\r\n");
+            #endif
             split_packet_error = true;
+        } else {
+            #ifdef DEBUG_DLL
+                put_str("Dropping frame: Error detected in frame\r\n");
+            #endif
         }
         return;
     }
+    #ifdef DEBUG_DLL_STEPS
+        put_str("CRC check passed\r\n"); 
+    #endif
+
+
     // Single packet (no split packets)
     if (frame.control[1] == 0) {
-        // Receive NET packet
-        net->receive(frame.net_packet, frame.length, frame.addressing[0]);
+        #ifdef DEBUG_DLL
+            put_str("Received packet: "); print(frame.net_packet, frame.length);
+        #endif
+        #ifndef DLL_TEST
+            #ifdef DEBUG_DLL
+                put_str("Passing packet to NET\r\n");
+            #endif
+            net->receive(frame.net_packet, frame.length, frame.addressing[0]);
+        #else
+            allocate(received_packet, received_packet_length, frame.length);
+            memcpy(received_packet, frame.net_packet, received_packet_length);
+        #endif
+        #ifdef DEBUG_DLL
+            put_str("\r\n");
+        #endif
     // Split packet
     } else {
-        // Append split packet onto reconstructed packet
-        reconstructed_packet.append(frame.net_packet);
-        // Last split packet
-        if (frame.control[0] == frame.control[1]) {
-            // Receive reconstructed NET packet
-            net->receive(reconstructed_packet, reconstructed_packet_length, frame.addressing[0]);
+        #ifdef DEBUG_DLL_STEPS
+            put_str("Frame detected as ");
+            if (frame.control[0] < frame.control[1]) {
+                put_str("part of");
+            } else {
+                put_str("final");
+            }
+            put_str(" split packet "); put_uint8(frame.control[0]+1); put_ch('/'); put_uint8(frame.control[1]+1); put_str("\r\n"); 
+        #endif
+        // First split packet
+        if (frame.control[0] == 0) {
+            allocate(reconstructed_packet, reconstructed_packet_length, frame.length);
+            memcpy(reconstructed_packet, frame.net_packet, reconstructed_packet_length);
+            #ifdef DEBUG_DLL_STEPS
+                put_str("Split packet: "); print(frame.net_packet, frame.length);
+                put_str("Storing split packet...\r\n"); 
+            #endif
+            #ifdef DEBUG_DLL
+                put_str("Partially reconstructed packet: "); print(reconstructed_packet, reconstructed_packet_length);
+            #endif
+        // Nth split packet
+        } else {
+            // Increment reconstructed packet length
+            reallocate(reconstructed_packet, reconstructed_packet_length, reconstructed_packet_length + frame.length);
+            // Append new split packet onto reconstructed packet
+            memcpy(&reconstructed_packet[reconstructed_packet_length - frame.length], frame.net_packet, frame.length);
+            // Last split packet
+            #ifdef DEBUG_DLL_STEPS
+                put_str("Split packet: "); print(frame.net_packet, frame.length);
+                put_str("Storing split packet...\r\n");
+            #endif
+            #ifdef DEBUG_DLL
+                if (frame.control[0] < frame.control[1]) {
+                    put_str("Partially");
+                } else {
+                    put_str("Fully");
+                }
+                put_str(" reconstructed packet: "); print(reconstructed_packet, reconstructed_packet_length);
+            #endif
+            if (frame.control[0] == frame.control[1]) {
+                #ifndef DLL_TEST
+                    #ifdef DEBUG_DLL
+                        put_str("Passing packet to NET...\r\n");
+                    #endif
+                    net->receive(reconstructed_packet, reconstructed_packet_length, frame.addressing[0]);
+                #else
+                    allocate(received_packet, received_packet_length, reconstructed_packet_length);
+                    memcpy(received_packet, reconstructed_packet, reconstructed_packet_length);
+                #endif
+                #ifdef DEBUG_DLL
+                    put_str("\r\n");
+                #endif
+                // Free memory
+                deallocate(reconstructed_packet, reconstructed_packet_length);
+            }
         }
     }
+    deallocate(frame.net_packet, frame.length);
 }
 
 void DLL::byte_stuff() {
@@ -110,7 +283,7 @@ void DLL::byte_stuff() {
             // Insert ESC at i
             message[i] = ESC;
             // XOR escaped byte
-            message[i + 1] ^= 0x20;
+            // message[i + 1] ^= 0x20;
             // Skip escaped (next) byte
             i++;
             // print(message, message_length);
@@ -143,7 +316,7 @@ void DLL::de_byte_stuff() {
             // Shift bytes after i left
             memcpy(&message[i], &message[i + 1], message_length - i);
             // XOR de-escaped byte
-            message[i] ^= 0x20;
+            // message[i] ^= 0x20;
             // Decrement message length
             reallocate(message, message_length, message_length - 1);
             #ifdef DEBUG_DLL_STEPS
