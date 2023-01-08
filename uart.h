@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifndef UART_H
+#ifdefndef UART_H
 #define UART_H
 #define F_CPU 12000000
 

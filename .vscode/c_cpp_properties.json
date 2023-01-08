@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "Win32",
+            "name": "Windows",
             "includePath": [
                 "${workspaceFolder}/**"
             ],
@@ -9,9 +9,9 @@
                 "_DEBUG",
                 "UNICODE",
                 "_UNICODE",
-                "WINDWOS"
+                "WINDOWS"
             ],
-            "compilerPath": "C:\\msys64\\mingw64\\bin\\gcc.exe",
+            "compilerPath": "C:\\msys64\\mingw64\\bin\\g++.exe",
             "cStandard": "gnu17",
             "cppStandard": "gnu++17",
             "intelliSenseMode": "windows-gcc-x64"
@@ -26,7 +26,7 @@
                 "UNICODE",
                 "_UNICODE"
             ],
-            "compilerPath": "C:\\WinAVR-20100110\\bin\\avr-gcc.exe",
+            "compilerPath": "C:\\WinAVR-20100110\\bin\\avr-g++.exe",
             "cStandard": "c99",
             "cppStandard": "c++98",
             "intelliSenseMode": "gcc-x64",

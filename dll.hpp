@@ -19,6 +19,30 @@ struct Frame {
     Frame();
 };
 
+#ifdef VIRTUAL_DLL
+    #include <stdlib.h>
+    enum PACKET_LENGTH_OPTIONS {
+        RANDOM = 0,
+        FIXED
+    };
+    enum PACKET_DATA_OPTIONS {
+        ALL = 0,
+        EMPTY,
+        ESC_ONLY,
+        FLAG_ONLY,
+        FLAG_AND_ESC,
+        SEQUENTIAL,
+    };
+    enum DESTINATION_MAC_ADDRESS_OPTIONS {
+        DEVICE = 0,
+        BROADCAST,
+        INCORRECT
+    };
+#else
+    class NET;
+    class PHY;
+#endif
+
 class DLL {
 private:
     Frame frame;
@@ -34,9 +58,13 @@ private:
     uint8_t expected_split_packet_num;
     uint8_t expected_last_split_packet_num;
 public:
-    #ifdef DLL_TEST
+    #ifdef VIRTUAL_DLL
         uint8_t* received_packet;
         uint8_t received_packet_length;
+        bool test(uint8_t max_packet_length, PACKET_LENGTH_OPTIONS, PACKET_DATA_OPTIONS, DESTINATION_MAC_ADDRESS_OPTIONS);
+    #else
+        NET* net;
+        PHY* phy;
     #endif
     DLL();
     void send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address);

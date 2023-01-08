@@ -1,30 +1,29 @@
 #pragma once
 #include "dll.hpp"
 
-// VIRTUAL DLL TEST
-#define DLL_TEST
-// #define DEBUG_DLL_TEST
+// Virtual DLL Test
+#define VIRTUAL_DLL
+// #define DEBUG_TEST
+// #define RANDOM_ERRORS
 
-// DLL DEBUGGING
+// DLL Debugging
 // #define DEBUG_DLL
-// #define DEBUG_DLL_FRAMES
-// #define DEBUG_DLL_STEPS
-// #define DEBUG_BYTE_STUFFING
 
-// PRINT ESC AND FLAGS
+// Printing
+// #define PRINT_FRAMES
+// #define PRINT_STEPS
+// #define PRINT_BYTE_STUFFING
 // #define PRINT_ESC_FLAG
 
-// MEMORY DEBUGGING
-// #define DEBUG_MEM
+// Memory debugging
+#define DEBUG_MEM
 // #define DEBUG_MEM_ELABORATE
 
 #ifdef WINDOWS
     #include <stdio.h>
     #define put_ch(ch) putchar(ch)
     #define put_str(str) printf(str)
-    #ifndef PRINT_ESC_FLAG
-        #define put_hex(hex) printf("0x%02X", hex)
-    #else
+    #ifdef PRINT_ESC_FLAG
         #define put_hex(hex)\
         if (hex == FLAG) {\
             printf("FLAG");\
@@ -33,6 +32,8 @@
         } else {\
             printf("0x%02X", hex);\
         }
+    #else
+        #define put_hex(hex) printf("0x%02X", hex)
     #endif
     #define put_uint8(uint8) printf("%u", uint8)
     #define put_uint16(uint16) printf("%u", uint16)
@@ -41,19 +42,24 @@
     #include <util/delay.h>
 #endif
 
-// Define DEBUG_DLL if DEBUG_DLL_FRAMES or DEBUG_DLL_STEPS is defined
-#ifdef DEBUG_DLL_STEPS
-    #ifndef DEBUG_DLL_FRAMES
-        #define DEBUG_DLL_FRAMES
+#ifdef PRINT_BYTE_STUFFING
+    #ifndef PRINT_STEPS
+        #define PRINT_STEPS
     #endif
 #endif
-#ifdef DEBUG_DLL_FRAMES
+
+#ifdef PRINT_STEPS
+    #ifndef PRINT_FRAMES
+        #define PRINT_FRAMES
+    #endif
+#endif
+
+#ifdef PRINT_FRAMES
     #ifndef DEBUG_DLL
         #define DEBUG_DLL
     #endif
 #endif
 
-// Define DEBUG_MEM if DEBUG_MEM_ELABORATE is defined
 #ifdef DEBUG_MEM_ELABORATE
     #ifndef DEBUG_MEM
         #define DEBUG_MEM
