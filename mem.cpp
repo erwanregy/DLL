@@ -3,7 +3,7 @@
 #include <string.h>
 #include "config.hpp"
 
-uint16_t mem_use;
+uint16_t mem_use = 0;
 
 bool mem_leak() {
     if (mem_use != 0) {

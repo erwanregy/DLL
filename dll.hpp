@@ -20,11 +20,7 @@ struct Frame {
 };
 
 class DLL {
-#ifdef DLL_TEST
-    public:
-#else
-    private:
-#endif
+private:
     Frame frame;
     uint8_t* stuffed_frame;
     uint8_t stuffed_frame_length;
@@ -34,12 +30,14 @@ class DLL {
     void de_byte_stuff();
     uint16_t calculate_crc();
     bool check_crc();
-    bool split_packet_error;
+    bool error_in_split_packet_sequence;
+    uint8_t expected_split_packet_num;
+    uint8_t expected_last_split_packet_num;
+public:
     #ifdef DLL_TEST
         uint8_t* received_packet;
         uint8_t received_packet_length;
     #endif
-public:
     DLL();
     void send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address);
     void receive(uint8_t* frame, uint8_t frame_length);
