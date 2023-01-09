@@ -2,13 +2,15 @@
     "tasks": [
         {
             "type": "cppbuild",
-            "label": "Windows Build",
+            "label": "Windows build",
             "command": "C:/msys64/mingw64/bin/g++.exe",
             "args": [
                 "-D",
                 "WINDOWS",
                 "-g",
-                "${workspaceFolder}/*.cpp",
+                "${workspaceFolder}/main.cpp",
+                "${workspaceFolder}/dll.cpp",
+                "${workspaceFolder}/mem.cpp",
                 "-o",
                 "${workspaceFolder}/dll.exe"
             ],

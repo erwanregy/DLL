@@ -1,10 +1,30 @@
 #pragma once
-#include <stdint.h>
 #include "config.hpp"
+#include <stdint.h>
+
+// Virtual DLL for isolated layer testing
+#define VIRTUAL_RECEIVER
+
+// Random error inserting
+#define RANDOM_ERRORS
+#define ERROR_RARITY 10
+#define DROP_RARITY 10
+
+// Debugging
+// #define DEBUG_TEST
+// #define DEBUG_DLL
+// #define DEBUG_RANDOM_ERRORS
+
+// Printing options
+// #define PRINT_FRAMES
+// #define PRINT_STEPS
+// #define PRINT_CRC
+// #define PRINT_BYTE_STUFFING
+// #define PRINT_ESC_AND_FLAG
 
 #define FLAG 0x7D
 #define ESC  0x7E
-#define MAC_ADDRESS 0
+#define DEVICE_MAC_ADDRESS 0
 #define MAX_PACKET_LENGTH 8
 #define POLYNOMIAL 65521
 
@@ -19,7 +39,7 @@ struct Frame {
     Frame();
 };
 
-#ifdef VIRTUAL_DLL
+#ifdef VIRTUAL_RECEIVER
     #include <stdlib.h>
     enum PACKET_LENGTH_OPTIONS {
         RANDOM = 0,
@@ -27,49 +47,107 @@ struct Frame {
     };
     enum PACKET_DATA_OPTIONS {
         ALL = 0,
-        EMPTY,
         ESC_ONLY,
         FLAG_ONLY,
-        FLAG_AND_ESC,
+        FLAG_AND_ESC_ONLY,
         SEQUENTIAL,
     };
     enum DESTINATION_MAC_ADDRESS_OPTIONS {
         DEVICE = 0,
         BROADCAST,
-        INCORRECT
+        WRONG
     };
 #else
     class NET;
-    class PHY;
 #endif
 
 class DLL {
+
 private:
     Frame frame;
+
+    // Sending
+    void byte_stuff();
+    uint16_t calculate_crc();
     uint8_t* stuffed_frame;
     uint8_t stuffed_frame_length;
+
+    // Receiving
+    bool check_crc();
+    void de_byte_stuff();
     uint8_t* reconstructed_packet;
     uint8_t reconstructed_packet_length;
-    void byte_stuff();
-    void de_byte_stuff();
-    uint16_t calculate_crc();
-    bool check_crc();
     bool error_in_split_packet_sequence;
     uint8_t expected_split_packet_num;
     uint8_t expected_last_split_packet_num;
+
 public:
-    #ifdef VIRTUAL_DLL
+    DLL();
+    void send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address);
+    void receive(uint8_t* frame, uint8_t frame_length);
+
+    #ifdef VIRTUAL_RECEIVER
         uint8_t* received_packet;
         uint8_t received_packet_length;
         bool test(uint8_t max_packet_length, PACKET_LENGTH_OPTIONS, PACKET_DATA_OPTIONS, DESTINATION_MAC_ADDRESS_OPTIONS);
     #else
+        // NET layer
         NET* net;
-        PHY* phy;
+
+        // MAC Sub-layer
+        class MAC {
+        private:
+            uint8_t back_off_counter;
+        public:
+            MAC();
+            void send(uint8_t* frame, uint8_t frame_length);
+            void tick();
+            void receive();
+        };
     #endif
-    DLL();
-    void send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address);
-    void receive(uint8_t* frame, uint8_t frame_length);
 };
 
 void print(Frame);
 void print(uint8_t* buffer, uint8_t buffer_length);
+
+#ifdef PRINT_ESC_AND_FLAG
+    #undef put_hex
+    #define put_hex(hex)\
+    if (hex == FLAG) {\
+        printf("FLAG");\
+    } else if (hex == ESC) {\
+        printf(" ESC");\
+    } else {\
+        printf("0x%02X", hex);\
+    }
+#endif
+
+#ifdef PRINT_CRC
+    #ifndef PRINT_STEPS
+        #define PRINT_STEPS
+    #endif
+#endif
+
+#ifdef PRINT_BYTE_STUFFING
+    #ifndef PRINT_STEPS
+        #define PRINT_STEPS
+    #endif
+#endif
+
+#ifdef PRINT_STEPS
+    #ifndef PRINT_FRAMES
+        #define PRINT_FRAMES
+    #endif
+#endif
+
+#ifdef PRINT_FRAMES
+    #ifndef DEBUG_DLL
+        #define DEBUG_DLL
+    #endif
+#endif
+
+#ifdef DEBUG_MEM_ELABORATE
+    #ifndef DEBUG_MEM
+        #define DEBUG_MEM
+    #endif
+#endif

@@ -28,7 +28,7 @@ void put_str(const char* str) {
 }
 
 void put_hex(uint8_t byte) {
-	#ifdef PRINT_ESC_FLAG
+	#ifdef PRINT_ESC_AND_FLAG
 		if (byte == FLAG) {
 			put_str("FLAG");
 			return;
