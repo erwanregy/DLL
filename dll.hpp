@@ -6,13 +6,14 @@
 #define VIRTUAL_RECEIVER
 
 // Random error inserting
-#define RANDOM_ERRORS
-#define ERROR_RARITY 10
-#define DROP_RARITY 10
+// #define RANDOM_ERRORS
+// #define ERROR_RARITY 10
+// #define DROP_RARITY 10
 
 // Debugging
-// #define DEBUG_TEST
 // #define DEBUG_DLL
+// #define DEBUG_MAC
+// #define DEBUG_TEST
 // #define DEBUG_RANDOM_ERRORS
 
 // Printing options
@@ -58,20 +59,17 @@ struct Frame {
         WRONG
     };
 #else
-    class NET;
+    class NetworkLayer;
 #endif
 
 class DLL {
-
 private:
     Frame frame;
-
     // Sending
     void byte_stuff();
     uint16_t calculate_crc();
     uint8_t* stuffed_frame;
     uint8_t stuffed_frame_length;
-
     // Receiving
     bool check_crc();
     void de_byte_stuff();
@@ -80,30 +78,28 @@ private:
     bool error_in_split_packet_sequence;
     uint8_t expected_split_packet_num;
     uint8_t expected_last_split_packet_num;
-
 public:
     DLL();
     void send(uint8_t* packet, uint8_t packet_length, uint8_t destination_address);
     void receive(uint8_t* frame, uint8_t frame_length);
-
     #ifdef VIRTUAL_RECEIVER
         uint8_t* received_packet;
         uint8_t received_packet_length;
         bool test(uint8_t max_packet_length, PACKET_LENGTH_OPTIONS, PACKET_DATA_OPTIONS, DESTINATION_MAC_ADDRESS_OPTIONS);
     #else
         // NET layer
-        NET* net;
-
-        // MAC Sub-layer
+        NetworkLayer* net;
+        // MAC sub-layer
         class MAC {
         private:
+            DLL& llc;
             uint8_t back_off_counter;
         public:
-            MAC();
+            MAC(DLL&);
             void send(uint8_t* frame, uint8_t frame_length);
             void tick();
             void receive();
-        };
+        } mac;
     #endif
 };
 

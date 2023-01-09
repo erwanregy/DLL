@@ -83,14 +83,14 @@ void DLL::MAC::receive() {
         #ifdef DEBUG_MAC_STEPS
             put_str("Passing frame to LLC\r\n");
         #endif
-        receive(frame, frame_length);
+        dll.receive(frame, frame_length);
 
         // Clear buffer
         rfm12_rx_clear();
     }
 }
 
-DLL::MAC::MAC() {
+DLL::MAC::MAC(DLL& dll) : dll(dll) {
     back_off_counter = 0;
     rfm12_init();   // Initialise the RFM12
     _delay_ms(100); // Delay for the RFM12 to initialize properly

@@ -1,5 +1,8 @@
 #include "dll.hpp"
 #include "mem.hpp"
+#ifndef VIRTUAL_RECEIVER
+    #include "network.h"
+#endif
 #include <string.h>
 
 #ifdef DEBUG_MEM_ELABORATE
@@ -155,7 +158,7 @@ void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_MAC_a
             #ifdef DEBUG_DLL
                 put_str("Passing frame to PHY\r\n");
             #endif
-            phy->send(stuffed_frame, stuffed_frame_length);
+            mac.send(stuffed_frame, stuffed_frame_length);
             
             // Deallocate stuffed_frame
             deallocate(stuffed_frame, stuffed_frame_length);
@@ -581,7 +584,11 @@ Frame::Frame() {
     footer = FLAG;
 }
 
-DLL::DLL() {
+#ifdef VIRTUAL_RECEIVER
+    DLL::DLL() {
+#else
+    DLL::DLL() : mac(*this) {
+#endif
     stuffed_frame = NULL;
     stuffed_frame_length = 0;
     reconstructed_packet = NULL;
@@ -695,121 +702,123 @@ void print(uint8_t* buffer, uint8_t buffer_length) {
     put_str("\r\n");
 }
 
-bool DLL::test(uint8_t max_packet_length, PACKET_LENGTH_OPTIONS packet_length_option, PACKET_DATA_OPTIONS packet_data_option, DESTINATION_MAC_ADDRESS_OPTIONS destination_MAC_address_option) {
-    // Set the packet length
-    uint8_t packet_length;
-    switch (packet_length_option) {
-    // Random packet length between 1 and max_packet_length
-    case RANDOM:
-        packet_length = rand() % max_packet_length + 1;
-        break;
-    // Fixed packet length
-    case FIXED:
-        packet_length = max_packet_length;
-        break;
-    default:
-        put_str("Error: Invalid length option in test\r\n");
-        exit(1);
-    }
-    uint8_t packet[packet_length];
-    
-    // Initialise data to send
-    for (uint16_t byte = 0; byte < packet_length; byte++) {
-        switch (packet_data_option) {
-        // All possible values
-        case ALL:
-            packet[byte] = rand() % 0x100;
+#ifdef VIRTUAL_RECEIVER
+    bool DLL::test(uint8_t max_packet_length, PACKET_LENGTH_OPTIONS packet_length_option, PACKET_DATA_OPTIONS packet_data_option, DESTINATION_MAC_ADDRESS_OPTIONS destination_MAC_address_option) {
+        // Set the packet length
+        uint8_t packet_length;
+        switch (packet_length_option) {
+        // Random packet length between 1 and max_packet_length
+        case RANDOM:
+            packet_length = rand() % max_packet_length + 1;
             break;
-        // FLAG bytes only
-        case FLAG_ONLY:
-            packet[byte] = FLAG;
-            break;
-        // ESC bytes only
-        case ESC_ONLY:
-            packet[byte] = ESC;
-            break;
-        // FLAG and ESC bytes only
-        case FLAG_AND_ESC_ONLY:
-            packet[byte] = rand() % 2 + FLAG;
-            break;
-        // Sequential numbering
-        case SEQUENTIAL:
-            packet[byte] = byte;
+        // Fixed packet length
+        case FIXED:
+            packet_length = max_packet_length;
             break;
         default:
-            put_str("Error: Invalid data option in test\r\n");
+            put_str("Error: Invalid length option in test\r\n");
             exit(1);
         }
-    }
+        uint8_t packet[packet_length];
+        
+        // Initialise data to send
+        for (uint16_t byte = 0; byte < packet_length; byte++) {
+            switch (packet_data_option) {
+            // All possible values
+            case ALL:
+                packet[byte] = rand() % 0x100;
+                break;
+            // FLAG bytes only
+            case FLAG_ONLY:
+                packet[byte] = FLAG;
+                break;
+            // ESC bytes only
+            case ESC_ONLY:
+                packet[byte] = ESC;
+                break;
+            // FLAG and ESC bytes only
+            case FLAG_AND_ESC_ONLY:
+                packet[byte] = rand() % 2 + FLAG;
+                break;
+            // Sequential numbering
+            case SEQUENTIAL:
+                packet[byte] = byte;
+                break;
+            default:
+                put_str("Error: Invalid data option in test\r\n");
+                exit(1);
+            }
+        }
 
-    // Set destination MAC address
-    uint8_t destination_MAC_address;
-    switch (destination_MAC_address_option)
-    {
-    // Device address
-    case DEVICE:
-        destination_MAC_address = DEVICE_MAC_ADDRESS;
-        break;
-    // Broadcast address
-    case BROADCAST:
-        destination_MAC_address = 0xFF;
-        break;
-    // Always incorrect address
-    case WRONG:
-        destination_MAC_address = DEVICE_MAC_ADDRESS + 1;
-        break;
-    default:
-        put_str("Error: Invalid address option in test\r\n");
-        exit(1);
-    }
+        // Set destination MAC address
+        uint8_t destination_MAC_address;
+        switch (destination_MAC_address_option)
+        {
+        // Device address
+        case DEVICE:
+            destination_MAC_address = DEVICE_MAC_ADDRESS;
+            break;
+        // Broadcast address
+        case BROADCAST:
+            destination_MAC_address = 0xFF;
+            break;
+        // Always incorrect address
+        case WRONG:
+            destination_MAC_address = DEVICE_MAC_ADDRESS + 1;
+            break;
+        default:
+            put_str("Error: Invalid address option in test\r\n");
+            exit(1);
+        }
 
-    // Send and receive packet
-    #ifdef DEBUG_TEST
-        put_str("Sending packet:  "); print(packet, packet_length);
-    #endif
-    send(packet, packet_length, destination_MAC_address);
-    #ifdef DEBUG_TEST
-        put_str("Received packet: "); print(received_packet, received_packet_length);
-        #ifdef DEBUG_DLL
-            put_str("Sent     packet: "); print(packet, packet_length);
+        // Send and receive packet
+        #ifdef DEBUG_TEST
+            put_str("Sending packet:  "); print(packet, packet_length);
         #endif
-    #endif
-
-    // Check sent and received packet lengths match
-    if (received_packet_length != packet_length) {
-        #ifdef DEBUG_DLL
-            put_str("\r\n");
+        send(packet, packet_length, destination_MAC_address);
+        #ifdef DEBUG_TEST
+            put_str("Received packet: "); print(received_packet, received_packet_length);
+            #ifdef DEBUG_DLL
+                put_str("Sent     packet: "); print(packet, packet_length);
+            #endif
         #endif
-        put_str("Error: Packet lengths do not match\r\n");
-        put_str("Sent     packet length: "); put_uint8(packet_length); put_str("\r\n");
-        put_str("Received packet length: "); put_uint8(received_packet_length); put_str("\r\n");
-        return 1;
-    }
 
-    // Check sent and received packet contents matches
-    for (uint8_t byte = 0; byte < packet_length; byte++) {
-        if (received_packet[byte] != packet[byte]) {
+        // Check sent and received packet lengths match
+        if (received_packet_length != packet_length) {
             #ifdef DEBUG_DLL
                 put_str("\r\n");
             #endif
-            put_str("Error: Packet contents do not match\r\n");
+            put_str("Error: Packet lengths do not match\r\n");
+            put_str("Sent     packet length: "); put_uint8(packet_length); put_str("\r\n");
+            put_str("Received packet length: "); put_uint8(received_packet_length); put_str("\r\n");
             return 1;
         }
+
+        // Check sent and received packet contents matches
+        for (uint8_t byte = 0; byte < packet_length; byte++) {
+            if (received_packet[byte] != packet[byte]) {
+                #ifdef DEBUG_DLL
+                    put_str("\r\n");
+                #endif
+                put_str("Error: Packet contents do not match\r\n");
+                return 1;
+            }
+        }
+
+        #ifdef DEBUG_DLL
+            put_str("Sent and received packets match\r\n");
+        #endif
+
+        // Deallocate received packet
+        deallocate(received_packet, received_packet_length);
+
+        // Check for memory leaks
+        if (mem_leak()) {
+            put_str("Error: Memory leak\r\n");
+            print_mem_use();
+            return 1;
+        }
+
+        return 0;
     }
-
-    #ifdef DEBUG_DLL
-        put_str("Sent and received packets match\r\n");
-    #endif
-
-    // Deallocate received packet
-    deallocate(received_packet, received_packet_length);
-
-    // Check for memory leaks
-    if (mem_leak()) {
-        put_str("Error: Memory leak\r\n");
-        print_mem_use();
-        return 1;
-    }
-
-    return 0;
-}
+#endif
