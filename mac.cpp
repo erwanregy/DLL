@@ -79,9 +79,9 @@ void DLL::MAC::receive() {
         uint8_t* frame = rfm12_rx_buffer();
         uint8_t frame_length = rfm12_rx_len();
 
-        // Pass frame to LLC
+        // Pass frame to DLL
         #ifdef DEBUG_MAC_STEPS
-            put_str("Passing frame to LLC\r\n");
+            put_str("Passing frame to DLL\r\n");
         #endif
         dll.receive(frame, frame_length);
 

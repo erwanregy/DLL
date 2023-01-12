@@ -113,50 +113,51 @@ void DLL::send(uint8_t* packet, uint8_t packet_length, uint8_t destination_MAC_a
 
         #ifdef RANDOM_ERRORS
             // Insert random errors in 1/ERROR_RARITY frames
-            uint8_t random_number = rand() % ERROR_RARITY;
-            if (random_number == 0) {
+            uint8_t random_errors = rand() % ERROR_RARITY;
+            if (random_errors == 0) {
 
-                random_number = rand() % DROP_RARITY;
+                // Select a random number of bytes to change
+                uint8_t num_changes = rand() % stuffed_frame_length;
+                
+                #ifdef DEBUG_RANDOM_ERRORS
+                    put_str("Random error: Changing bytes\r\n");
+                #endif
 
-                if (random_number == 0) {
-                    #ifdef DEBUG_RANDOM_ERRORS
-                        put_str("Random error: Dropping frame\r\n");
-                    #endif        
-                                
-                    // Deallocate stuffed_frame
-                    deallocate(stuffed_frame, stuffed_frame_length);
-
-                    // Drop frame (continue to next frame)
-                    continue;
-                } else {
-                    // Select a random number of bytes to change
-                    uint8_t num_changes = rand() % stuffed_frame_length;
-                    
-                    #ifdef DEBUG_RANDOM_ERRORS
-                        put_str("Random error: Changing bytes\r\n");
-                    #endif
-
-                    // Change bytes
-                    for (uint8_t _ = 0; _ < num_changes; _++) {
-                        // Select a random byte in stuffed frame and change it to a random value
-                        uint8_t byte_num = rand() % stuffed_frame_length;
-                        stuffed_frame[byte_num] = rand() % 0xFF + 1;
-                    }
+                // Change bytes
+                for (uint8_t _ = 0; _ < num_changes; _++) {
+                    // Select a random byte in stuffed frame and change it to a random value
+                    uint8_t byte_num = rand() % stuffed_frame_length;
+                    stuffed_frame[byte_num] = rand() % 0xFF + 1;
                 }
+            }
+        #endif
+        #ifdef RANDOM_DROPS
+            // Drop 1/DROP_RARITY frames
+            uint8_t random_drops = rand() % DROP_RARITY;
+            if (random_drops == 0) {
+                #ifdef DEBUG_RANDOM_ERRORS
+                    put_str("Random error: Dropping frame\r\n");
+                #endif        
+                            
+                // Deallocate stuffed_frame
+                deallocate(stuffed_frame, stuffed_frame_length);
+
+                // Drop frame (continue to next frame)
+                continue;
             }
         #endif
 
         // Pass the frame...
         #ifdef VIRTUAL_RECEIVER
-            // ...to virtual DLL receiver
+            // ...to virtual receiver
             #ifdef DEBUG_DLL
-                put_str("Passing frame to virtual DLL receiver\r\n");
+                put_str("Passing frame to virtual receiver\r\n");
             #endif
             receive(stuffed_frame, stuffed_frame_length);
         #else
-            // ...to PHY
+            // ...to MAC
             #ifdef DEBUG_DLL
-                put_str("Passing frame to PHY\r\n");
+                put_str("Passing frame to MAC\r\n");
             #endif
             mac.send(stuffed_frame, stuffed_frame_length);
             
@@ -649,19 +650,10 @@ void print(Frame frame) {
         put_ch('+');
     }
     put_str("------------+--------+\r\n");
-    put_str("|  ");
-    put_hex(frame.header);
-    put_str("  | ");
-    put_hex(frame.control[0]);
-    put_ch(' ');
-    put_hex(frame.control[1]);
-    put_str(" | ");
-    put_hex(frame.addressing[0]);
-    put_str("  ");
-    put_hex(frame.addressing[1]);
-    put_str(" |  ");
-    put_hex(frame.length);
-    put_str("  | ");
+    put_str("|  "); put_hex(frame.header); put_str("  | ");
+    put_hex(frame.control[0]); put_ch(' '); put_hex(frame.control[1]); put_str(" | ");
+    put_hex(frame.addressing[0]); put_str("  "); put_hex(frame.addressing[1]);
+    put_str(" |  "); put_hex(frame.length); put_str("  | ");
     if (frame.length > 2) {
         for (uint8_t i = 0; i < frame.length; i++) {
             put_hex(frame.net_packet[i]);
@@ -669,21 +661,12 @@ void print(Frame frame) {
         }
         put_str("| ");
     } else if (frame.length == 2) {
-        put_hex(frame.net_packet[0]);
-        put_str("  ");
-        put_hex(frame.net_packet[1]);
-        put_str(" | ");
+        put_hex(frame.net_packet[0]); put_str("  "); put_hex(frame.net_packet[1]); put_str(" | ");
     } else if (frame.length == 1) {
-        put_str("   ");
-        put_hex(frame.net_packet[0]);
-        put_str("    | ");
+        put_str("   "); put_hex(frame.net_packet[0]); put_str("    | ");
     }
-    put_hex(frame.checksum[0]);
-    put_str("  ");
-    put_hex(frame.checksum[1]);
-    put_str(" |  ");
-    put_hex(frame.footer);
-    put_str("  |\r\n");
+    put_hex(frame.checksum[0]); put_str("  "); put_hex(frame.checksum[1]);
+    put_str(" |  "); put_hex(frame.footer); put_str("  |\r\n");
     put_str("+--------+-----------+------------+--------+");
     if (frame.length > 0) {
         for (uint8_t i = 0; i < num_dashes; i++) {
@@ -696,8 +679,7 @@ void print(Frame frame) {
 
 void print(uint8_t* buffer, uint8_t buffer_length) {
     for (uint8_t byte = 0; byte < buffer_length; byte++) {
-        put_hex(buffer[byte]);
-        put_ch(' ');
+        put_hex(buffer[byte]); put_ch(' ');
     }
     put_str("\r\n");
 }
@@ -737,7 +719,7 @@ void print(uint8_t* buffer, uint8_t buffer_length) {
                 packet[byte] = ESC;
                 break;
             // FLAG and ESC bytes only
-            case FLAG_AND_ESC_ONLY:
+            case FLAG_AND_ESC:
                 packet[byte] = rand() % 2 + FLAG;
                 break;
             // Sequential numbering

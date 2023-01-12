@@ -5,8 +5,9 @@
 // Virtual DLL for isolated layer testing
 #define VIRTUAL_RECEIVER
 
-// Random error inserting
+// Random Errors / Drops
 // #define RANDOM_ERRORS
+// #define RANDOM_DROPS
 // #define ERROR_RARITY 10
 // #define DROP_RARITY 10
 
@@ -18,7 +19,7 @@
 
 // Printing options
 // #define PRINT_FRAMES
-// #define PRINT_STEPS
+#define PRINT_STEPS
 // #define PRINT_CRC
 // #define PRINT_BYTE_STUFFING
 // #define PRINT_ESC_AND_FLAG
@@ -50,7 +51,7 @@ struct Frame {
         ALL = 0,
         ESC_ONLY,
         FLAG_ONLY,
-        FLAG_AND_ESC_ONLY,
+        FLAG_AND_ESC,
         SEQUENTIAL,
     };
     enum DESTINATION_MAC_ADDRESS_OPTIONS {
@@ -92,7 +93,7 @@ public:
         // MAC sub-layer
         class MAC {
         private:
-            DLL& llc;
+            DLL& dll;
             uint8_t back_off_counter;
         public:
             MAC(DLL&);
@@ -106,16 +107,18 @@ public:
 void print(Frame);
 void print(uint8_t* buffer, uint8_t buffer_length);
 
-#ifdef PRINT_ESC_AND_FLAG
-    #undef put_hex
-    #define put_hex(hex)\
-    if (hex == FLAG) {\
-        printf("FLAG");\
-    } else if (hex == ESC) {\
-        printf(" ESC");\
-    } else {\
-        printf("0x%02X", hex);\
-    }
+#ifdef WINDOWS
+    #ifdef PRINT_ESC_AND_FLAG
+        #undef put_hex
+        #define put_hex(hex)\
+        if (hex == FLAG) {\
+            printf("FLAG");\
+        } else if (hex == ESC) {\
+            printf(" ESC");\
+        } else {\
+            printf("0x%02X", hex);\
+        }
+    #endif
 #endif
 
 #ifdef PRINT_CRC
