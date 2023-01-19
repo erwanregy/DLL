@@ -1,3 +1,3 @@
 # DLL
 
-Data link layer implementation for an embedded AVR microcontroller
+Data link layer implementation for embedded AVR microcontroller
